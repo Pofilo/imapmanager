@@ -1,4 +1,6 @@
 import imaplib
+import email
+import mailbox
 
 from utils import getParameter
 
@@ -20,7 +22,7 @@ def connect(confFile):
 
 	return mail
 
-def getMail(confFile, mail):
+def parseMail(confFile, mail):
 	
 	directory = getParameter(confFile, "directory")
 	
@@ -34,6 +36,9 @@ def getMail(confFile, mail):
 		# See the mail without changing his unread flag
 		typ, data = mail.fetch(num, '(BODY.PEEK[])')
 		print 'Message %s\n%s\n' % (num, data[0][1])
+
+		mailTo = str(email.header.make_header(email.header.decode_header(email.message_from_string(data[0][1].decode('utf-8'))['To'])))
+		print '---> To: %s' % (mailTo)
 
 	return data
 
