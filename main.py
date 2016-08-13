@@ -1,5 +1,8 @@
 import imaplib
 
-from imap import connect
+from imap import connect, logout, getMail
 
-mail = connect("config.yaml")
+confFile = "config.yaml"
+mail = connect(confFile)
+data = getMail(confFile, mail)
+logout(mail)
