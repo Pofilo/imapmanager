@@ -1,6 +1,4 @@
 import imaplib
-import sys
-import yaml
 
 from utils import getParameter
 
