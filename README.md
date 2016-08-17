@@ -12,10 +12,8 @@ You want to automatically moove your mails into the good folder. However, the us
 
 ## Example
 
-To use the script, you need to use this syntax: 
-+ If you have the address *contact@pofilo.fr*, your folder will be named *@contact*.
-
-I choose to add an *@* as a prefix to differenciate the folders (if a folder start by *@*, the folder corresponds to an alias).
+To use the script, you need to use the syntax presented in *config.yaml.sample* (care to not use tabulations but spaces). 
+In the sample, the mail for *mail1@domain.com* will be moved in the folder named *folder1*.
 
 ## Installation
 

@@ -3,6 +3,7 @@ import email
 import mailbox
 
 from utils import getParameter
+from utils import getFolder
 
 def connect(confFile):
 
@@ -39,6 +40,7 @@ def parseMail(confFile, mail):
 
 		mailTo = str(email.header.make_header(email.header.decode_header(email.message_from_string(data[0][1].decode('utf-8'))['To'])))
 		print '---> To: %s' % (mailTo)
+		getFolder(confFile, mailTo)
 
 	return data
 
@@ -46,4 +48,5 @@ def logout(mail):
 	# Close and logout the connection
 	mail.close()
 	mail.logout()
+
 

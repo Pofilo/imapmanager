@@ -2,3 +2,6 @@ imapServer: imap.domain.com
 username: example@domain.fr
 password: azerty
 directory: INBOX
+to:
+  mail1@domain.com: folder1
+  mail2@domain.com: folder2
