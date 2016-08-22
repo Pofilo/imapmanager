@@ -13,6 +13,10 @@ def openYaml(confFile):
 		return yaml.load(f)
 
 def getFolder(confFile, mailTo):
+	# Remove <> added by some client
+	if mailTo[0] == '<':
+		length = len(mailTo)
+		mailTo = mailTo[1:length-1]
 	conf = openYaml(confFile)
 	# Check if the mail has a rule, otherwise take the default folder
 	folder = conf["to"]["default"]
