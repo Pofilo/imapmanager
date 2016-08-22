@@ -14,9 +14,10 @@ def openYaml(confFile):
 
 def getFolder(confFile, mailTo):
 	conf = openYaml(confFile)
+	# Check if the mail has a rule, otherwise take the default folder
+	folder = conf["to"]["default"]
 	for k,v in conf["to"].iteritems():
 		if k.find(mailTo) != -1:
-			print "OK"
-			print conf["to"][mailTo]
-		else:
-			print "NOPE"
+			folder = conf["to"][mailTo]
+			
+	return folder

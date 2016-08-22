@@ -23,7 +23,7 @@ def connect(confFile):
 
 	return mail
 
-def parseMail(confFile, mail):
+def processMails(confFile, mail):
 	
 	directory = getParameter(confFile, "directory")
 	
@@ -32,16 +32,22 @@ def parseMail(confFile, mail):
 	# Get the unseen mails of this directory
 	typ, data = mail.search(None, 'UNSEEN')
 
+	# Counter of the number of mails proccessed
+	count = 0
 	# Parse the mails
 	for num in data[0].split():
+		num = int(num)-count
 		# See the mail without changing his unread flag
 		typ, data = mail.fetch(num, '(BODY.PEEK[])')
-		print 'Message %s\n%s\n' % (num, data[0][1])
-
 		mailTo = str(email.header.make_header(email.header.decode_header(email.message_from_string(data[0][1].decode('utf-8'))['To'])))
-		print '---> To: %s' % (mailTo)
-		getFolder(confFile, mailTo)
-
+		# Get the name of the folder for this mail
+		folder = getFolder(confFile, mailTo)
+		# We copy the mail into the folder
+		mail.copy(num, folder)
+		# We delete the original mail
+		mov, data = mail.store(num, '+FLAGS', '\\Deleted')
+		mail.expunge()
+		count += 1
 	return data
 
 def logout(mail):

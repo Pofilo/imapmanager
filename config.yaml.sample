@@ -5,3 +5,4 @@ directory: INBOX
 to:
   mail1@domain.com: folder1
   mail2@domain.com: folder2
+  default: others
