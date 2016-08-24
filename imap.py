@@ -16,7 +16,7 @@ def connect(confFile):
 
 	try:
 		mail.login(username, password)
-		print "Successfully logged as %r" % username
+		# print "Successfully logged as %r" % username
 
 	except imaplib.IMAP4.error:
 		sys.exit("Error during the execution of the script")
