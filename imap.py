@@ -11,10 +11,10 @@ def connect(confFile):
 	password = getParameter(confFile, "password")
 	imapServer = getParameter(confFile, "imapServer")
 
-	# Connect to the mail account
-	mail = imaplib.IMAP4_SSL(imapServer)
-
 	try:
+		# Connect to the mail account
+		mail = imaplib.IMAP4_SSL(imapServer)
+
 		mail.login(username, password)
 		# print "Successfully logged as %r" % username
 
