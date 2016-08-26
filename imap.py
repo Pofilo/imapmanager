@@ -1,6 +1,7 @@
 import imaplib
 import email
 import mailbox
+import sys
 
 from utils import getParameter
 from utils import getFolder
@@ -24,7 +25,8 @@ def connect(confFile):
 	return mail
 
 def processMails(confFile, mail):
-	
+	reload(sys) 
+	sys.setdefaultencoding('utf8')
 	directory = getParameter(confFile, "directory")
 	
 	# Go into the <directory> directory
@@ -39,7 +41,7 @@ def processMails(confFile, mail):
 		num = int(num)-count
 		# See the mail without changing his unread flag
 		typ, data = mail.fetch(num, '(BODY.PEEK[])')
-		mailTo = str(email.header.make_header(email.header.decode_header(email.message_from_string(data[0][1].decode('utf-8'))['To'])))
+		mailTo = str(email.header.make_header(email.header.decode_header(email.message_from_string(data[0][1].decode('utf8'))['To'])))
 		# Get the name of the folder for this mail
 		folder = getFolder(confFile, mailTo)
 		# We copy the mail into the folder
