@@ -1,7 +1,6 @@
 import imaplib
 import email
 import mailbox
-import sys
 
 from utils import getParameter
 from utils import getFolder
@@ -25,8 +24,6 @@ def connect(confFile):
 	return mail
 
 def processMails(confFile, mail):
-	reload(sys) 
-	sys.setdefaultencoding('utf8')
 	directory = getParameter(confFile, "directory")
 	
 	# Go into the <directory> directory

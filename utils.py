@@ -21,7 +21,7 @@ def getFolder(confFile, mailTo):
 	# Check if the mail has a rule, otherwise take the default folder
 	folder = conf["to"]["default"]
 	for k,v in conf["to"].iteritems():
-		if k.find(mailTo) != -1:
-			folder = conf["to"][mailTo]
+		if mailTo.find(k) != -1:
+			folder = conf["to"][k]
 			
 	return folder
