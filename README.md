@@ -25,9 +25,10 @@ In the sample, the mail for *mail1@domain.com* will be moved in the folder named
 
 ### TODO List
 
-+ Finish the basic of the script to be functionnal (it's a bit obvious ^^)
++ Deal with mails not encoded in utf8
 + Add the functionnality to send a sms for any mails of a specific alias
 + To be more general and allows to filter in function of the sender or with a regex on the subject of the mail
++ Make a web interface for the configuration ?
 
 ### Contact
 

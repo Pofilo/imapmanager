@@ -38,15 +38,19 @@ def processMails(confFile, mail):
 		num = int(num)-count
 		# See the mail without changing his unread flag
 		typ, data = mail.fetch(num, '(BODY.PEEK[])')
-		mailTo = str(email.header.make_header(email.header.decode_header(email.message_from_string(data[0][1].decode('utf8'))['To'])))
-		# Get the name of the folder for this mail
-		folder = getFolder(confFile, mailTo)
-		# We copy the mail into the folder
-		mail.copy(num, folder)
-		# We delete the original mail
-		mov, data = mail.store(num, '+FLAGS', '\\Deleted')
-		mail.expunge()
-		count += 1
+		try:
+			mailTo = str(email.header.make_header(email.header.decode_header(email.message_from_string(data[0][1].decode('utf8'))['To'])))
+			# Get the name of the folder for this mail
+			folder = getFolder(confFile, mailTo)
+			# We copy the mail into the folder
+			mail.copy(num, folder)
+			# We delete the original mail
+			mov, data = mail.store(num, '+FLAGS', '\\Deleted')
+			mail.expunge()
+			count += 1
+		except UnicodeDecodeError:
+			# 'utf8' codec can't decode byte ..
+			pass			
 	return data
 
 def logout(mail):
