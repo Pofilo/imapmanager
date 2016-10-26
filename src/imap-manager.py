@@ -6,7 +6,7 @@ from time import sleep
 
 reload(sys)
 sys.setdefaultencoding('utf8')
-confFile = "config.yaml"
+confFile = "../config/config.yaml"
 while 1: 	
 	mail = connect(confFile)
 	data = processMails(confFile, mail)

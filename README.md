@@ -1,4 +1,5 @@
 # imap-manager
+Version 0.1
 
 Connect and manage your mail account through IMAP over SSL.
 
@@ -17,9 +18,10 @@ In the sample, the mail for *mail1@domain.com* will be moved in the folder named
 
 ## Installation
 
++ **I don't suggest you to use this script, data may be lost. It's more designed for my personnal use.**
 + Wait a bit that the script is a bit more advanced
 + Copy *config.yaml.sample* into *config.yaml* and update the values
-+ Execute the script *main.py*
++ Execute the script *imap-manager.py* (you have to execute it placing yourself at the level of this file)
 
 ## More
 
