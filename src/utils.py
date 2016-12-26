@@ -23,5 +23,11 @@ def getFolder(confFile, mailTo):
 	for k,v in conf["to"].iteritems():
 		if mailTo.find(k) != -1:
 			folder = conf["to"][k]
-			
+
 	return folder
+
+def getDefaultFolder(confFile):
+	# Open the conf file
+	conf = openYaml(confFile)
+	# Get the default folder in the conf file
+	return conf["to"]["default"]
