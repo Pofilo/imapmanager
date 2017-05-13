@@ -3,8 +3,10 @@ import email
 import mailbox
 
 from utils import getParameter
-from utils import getFolder
+from utils import getFolderTo
+from utils import getFolderSubject
 from utils import getDefaultFolder
+from utils import openYaml
 
 def connect(confFile):
 
@@ -18,7 +20,6 @@ def connect(confFile):
 
 		mail.login(username, password)
 		# print "Successfully logged as %r" % username
-
 	except imaplib.IMAP4.error:
 		sys.exit("Error during the execution of the script")
 
@@ -39,14 +40,34 @@ def processMails(confFile, mail):
 		num = int(num)-count
 		# See the mail without changing his unread flag
 		typ, data = mail.fetch(num, '(BODY.PEEK[])')
+		
 		try:
-			mailTo = str(email.header.make_header(email.header.decode_header(email.message_from_string(data[0][1].decode('utf8'))['To'])))
-			# Get the name of the folder for this mail
-			folder = getFolder(confFile, mailTo)
+			folder = "";
+			# Check if the mail is a spam
+			subject = str(email.header.make_header(email.header.decode_header(email.message_from_string(data[0][1].decode('utf8'))['Subject'])))
+			folder = getFolderSubject(confFile, subject);
+			
+			# If the mail is not a spam
+			if folder == "":
+				mailTo = str(email.header.make_header(email.header.decode_header(email.message_from_string(data[0][1].decode('utf8'))['To'])))
+				# Get the name of the folder for this mail
+				folder = getFolderTo(confFile, mailTo)
+				
+			# If we still don't have a rule for the mail, take the default folder
+			if folder == "":
+				folder = getDefaultFolder(confFile)
+				
 		except UnicodeDecodeError:
 			# 'utf8' codec can't decode byte ..
 			# So we move the mail into the default folder
 			folder = getDefaultFolder(confFile)
+			
+		# Check if the folder exists
+		# TODO
+		# boxes = mail.list()
+		# for box in boxes[1]:
+		#	print box
+		
 		# We copy the mail into the folder
 		mail.copy(num, folder)
 		# We delete the original mail

@@ -12,17 +12,27 @@ def openYaml(confFile):
 	with open(confFile, 'r') as f:
 		return yaml.load(f)
 
-def getFolder(confFile, mailTo):
+def getFolderTo(confFile, mailTo):
+	folder = ""
 	# Remove <> added by some client
 	if mailTo[0] == '<':
 		length = len(mailTo)
 		mailTo = mailTo[1:length-1]
 	conf = openYaml(confFile)
-	# Check if the mail has a rule, otherwise take the default folder
-	folder = conf["to"]["default"]
+	# Check if the mail has a rule
 	for k,v in conf["to"].iteritems():
 		if mailTo.find(k) != -1:
 			folder = conf["to"][k]
+
+	return folder
+	
+def getFolderSubject(confFile, subject):
+	folder = ""
+	conf = openYaml(confFile)
+	# Check if the mail has a spam rule
+	for k,v in conf["subject"].iteritems():
+		if subject.find(k) != -1:
+			folder = conf["subject"][k]
 
 	return folder
 
@@ -31,3 +41,5 @@ def getDefaultFolder(confFile):
 	conf = openYaml(confFile)
 	# Get the default folder in the conf file
 	return conf["to"]["default"]
+
+	
