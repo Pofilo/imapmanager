@@ -51,7 +51,7 @@ def processMails(confFile, mail):
 			if folder == "":
 				mailTo = str(email.header.make_header(email.header.decode_header(email.message_from_string(data[0][1].decode('utf8'))['To'])))
 				# Get the name of the folder for this mail
-				folder = getFolderTo(confFile, mailTo)
+				folder = getFolderTo(confFile, mailTo.lower())
 				
 			# If we still don't have a rule for the mail, take the default folder
 			if folder == "":
