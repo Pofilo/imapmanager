@@ -2,10 +2,14 @@ imapServer: imap.domain.com
 username: example@domain.fr
 password: azerty
 directory: INBOX
-to:
-  mail1@domain.com: folder1
-  mail2@domain.com: folder2
-  default: others
+sleepDuration: 5
 subject:
   "[SPAM]": spamFolder
   "*** SPAM ***": spamFolder
+from:
+  mail1@domain.com: folder1
+to:
+  mail1@domain1.com: folder1
+  mail2@domain1.com: folder2
+default: others
+

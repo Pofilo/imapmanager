@@ -1,45 +1,35 @@
-import sys
-import yaml
+username = 'username'
+password = 'password'
+imapServer = 'imapServer'
+directory = 'directory'
+sleepDuration = 'sleepDuration'
+directory = 'directory'
+subject = 'subject'
+mfrom = 'from'
+to = 'to'
+default = 'default'
+defaultConfigPath = '../config/config.yaml'
 
-def getParameter(confFile, parameter):
-	# Get the parameter in the configuration file
-	conf = openYaml(confFile)
-
-	return conf[parameter]
-
-def openYaml(confFile):
-	# Open and return the yaml file
-	with open(confFile, 'r') as f:
-		return yaml.load(f)
-
-def getFolderTo(confFile, mailTo):
-	folder = ""
-	# Remove <> added by some client
-	if mailTo[0] == '<':
-		length = len(mailTo)
-		mailTo = mailTo[1:length-1]
-	conf = openYaml(confFile)
+def getFolder(conf, rule, param):
+	folder = ''
 	# Check if the mail has a rule
-	for k,v in conf["to"].iteritems():
-		if mailTo.find(k) != -1:
-			folder = conf["to"][k]
+	for argument, value in conf[rule].iteritems():
+		if argument in param:
+			folder = value
+			break
 
 	return folder
 	
-def getFolderSubject(confFile, subject):
-	folder = ""
-	conf = openYaml(confFile)
-	# Check if the mail has a spam rule
-	for k,v in conf["subject"].iteritems():
-		if subject.find(k) != -1:
-			folder = conf["subject"][k]
-
-	return folder
-
-def getDefaultFolder(confFile):
-	# Open the conf file
-	conf = openYaml(confFile)
+def getDefaultFolder(conf):
 	# Get the default folder in the conf file
-	return conf["to"]["default"]
-
+	return conf[default]
 	
+def cleanAddress(address):
+	# Remove <> added by some client and only get the content inside
+	if '<' in address:
+		address = address.split('<')[1]
+		if '>' in address:
+			address = address.split('>')[0]
+		
+	return address
+
