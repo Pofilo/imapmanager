@@ -1,3 +1,5 @@
+from datetime import datetime
+
 username = 'username'
 password = 'password'
 imapServer = 'imapServer'
@@ -9,6 +11,12 @@ mfrom = 'from'
 to = 'to'
 default = 'default'
 defaultConfigPath = '../config/config.yaml'
+
+# LOGS
+ERROR = 'ERROR'
+WARN = 'WARN'
+INFO = 'INFO'
+DEBUG = 'DEBUG'
 
 def getFolder(conf, rule, param):
 	folder = ''
@@ -32,4 +40,7 @@ def cleanAddress(address):
 			address = address.split('>')[0]
 		
 	return address
+
+def log(level, message):
+	print '{} ({}): {}'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S'), level, message)
 

@@ -9,7 +9,7 @@ def connect(username, password, imapServer):
 		# Connect to the mail account
 		m = imaplib.IMAP4_SSL(imapServer)
 		m.login(username, password)
-		print 'Successfully logged as "{}"'.format(username)
+		utils.log(utils.INFO, 'Successfully logged as "{}"'.format(username))	
 	except imaplib.IMAP4.error:
 		sys.exit('Login error')
 		
@@ -62,8 +62,7 @@ def processMails(conf, m):
 		if folder == '':
 			folder = utils.getDefaultFolder(conf)
 			
-		print 'GET mail "{}" from "{}" to "{}" to be moved to "{}"'.format(subject, mailFrom, mailTo, folder) 
-				
+		utils.log(utils.INFO, 'GET mail "{}" from "{}" to "{}" to be moved to "{}"'.format(subject, mailFrom, mailTo, folder))			
 		# Check if the folder exists
 		# TODO
 		# boxes = m.list()
@@ -82,6 +81,6 @@ def logout(m):
 	# Close and logout the connection
 	m.close()
 	m.logout()
-	print 'Logout success'
+	utils.log(utils.INFO, 'Logout success')
 
 

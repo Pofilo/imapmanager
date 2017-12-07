@@ -19,21 +19,20 @@ imapServer = conf[utils.imapServer]
 directory = conf[utils.directory]
 sleepDuration = conf[utils.sleepDuration]
 
-print '--------------------'
-print 'imap-manager launched with user "{}" on "{}"'.format(username, imapServer)
-sys.stdout.flush()
+utils.log(utils.INFO, '--------------------')
+utils.log(utils.INFO, 'imap-manager launched with user "{}" on "{}"'.format(username, imapServer))
 
 m = imap.connect(username, password, imapServer)
 m.select(conf[utils.directory])
 
 while 1:
 	if(not imap.check(m)):
-		print 'Check connection failed, trying to reconnect ...'
+		utils.log(utils.INFO, 'Check connection failed, trying to reconnect ...')
 		m = imap.connect(username, password, imapServer)
 	data = imap.processMails(conf, m)
 	sleep(sleepDuration)
-	sys.stdout.flush()
 	
 imap.logout(m)
 
-print 'imap-manager closed.'
+utils.log(utils.INFO, 'imap-manager closed.')
+
