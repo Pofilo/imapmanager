@@ -48,17 +48,17 @@ def processMails(conf, m):
 			folder = utils.getFolder(conf, utils.subject, subject);
 			
 		# Check if the mail has a 'from' rule
-		if not folder:
-			mailFrom = rawEmail[utils.mfrom]
-			if mailFrom:
-				mailFrom = utils.cleanAddress(mailFrom.lower())
+		mailFrom = rawEmail[utils.mfrom]
+		if mailFrom:
+			mailFrom = utils.cleanAddress(mailFrom.lower())
+			if not folder:
 				folder = utils.getFolder(conf, utils.mfrom, mailFrom)
 			
 		# Check if the mail has a 'to' rule
-		if not folder:
-			mailTo = rawEmail[utils.to]
-			if mailTo:
-				mailTo = utils.cleanAddress(mailTo.lower())
+		mailTo = rawEmail[utils.to]
+		if mailTo:
+			mailTo = utils.cleanAddress(mailTo.lower())
+			if not folder:
 				folder = utils.getFolder(conf, utils.to, mailTo)
 			
 		# If we still don't have a rule for the mail, take the default folder
