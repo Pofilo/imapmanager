@@ -45,6 +45,7 @@ def processMails(conf, m):
 		# Check if the mail has a 'subject' rule
 		subject = rawEmail[utils.subject]
 		if subject:
+			subject = utils.decodeSubject(subject)
 			folder = utils.getFolder(conf, utils.subject, subject);
 			
 		# Check if the mail has a 'from' rule
@@ -65,7 +66,7 @@ def processMails(conf, m):
 		if not folder:
 			folder = utils.getDefaultFolder(conf)
 			
-		utils.log(utils.INFO, 'GET mail "{}" from "{}" to "{}" to be moved to "{}"'.format(subject, mailFrom, mailTo, folder))			
+		utils.log(utils.INFO, 'GET mail "{}" from "{}" to "{}" to be moved to "{}"'.format(subject.encode('utf8'), mailFrom.encode('utf8'), mailTo.encode('utf8'), folder.encode('utf8')))
 		# Check if the folder exists
 		# TODO
 		# boxes = m.list()
