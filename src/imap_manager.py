@@ -1,13 +1,19 @@
 import imaplib
-import sys
+import sys, signal, time
 import yaml
 from time import sleep
 
 import imap
 import utils
 
-#reload(sys)
-#sys.setdefaultencoding('utf8')
+running = True
+
+def signalHandler(signal, frame):
+	global running
+	running = False
+
+signal.signal(signal.SIGINT, signalHandler)
+signal.signal(signal.SIGTERM, signalHandler)
 
 confFile = utils.defaultConfigPath
 # Open and load the file conf
@@ -25,14 +31,16 @@ utils.log(utils.INFO, 'imap-manager launched with user "{}" on "{}"'.format(user
 m = imap.connect(username, password, imapServer)
 m.select(conf[utils.directory])
 
-while 1:
+while running:
 	if(not imap.check(m)):
 		utils.log(utils.INFO, 'Check connection failed, trying to reconnect ...')
 		m = imap.connect(username, password, imapServer)
 	data = imap.processMails(conf, m)
-	sleep(sleepDuration)
-	
-imap.logout(m)
+	# If signal occurs during process, there is no need to sleep
+	if running:
+		time.sleep(sleepDuration)
 
+imap.logout(m)
 utils.log(utils.INFO, 'imap-manager closed.')
+
 

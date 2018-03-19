@@ -9,7 +9,7 @@ def connect(username, password, imapServer):
 		# Connect to the mail account
 		m = imaplib.IMAP4_SSL(imapServer)
 		m.login(username, password)
-		utils.log(utils.INFO, 'Successfully logged as "{}"'.format(username))	
+		utils.log(utils.INFO, 'Successful connection as "{}"'.format(username))	
 	except imaplib.IMAP4.error:
 		sys.exit('Login error')
 		
@@ -85,6 +85,6 @@ def logout(m):
 	# Close and logout the connection
 	m.close()
 	m.logout()
-	utils.log(utils.INFO, 'Logout success')
+	utils.log(utils.INFO, 'Successful disconnection')
 
 
