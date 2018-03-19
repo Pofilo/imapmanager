@@ -1,6 +1,7 @@
 import imaplib
 import email
 import mailbox
+import sys
 
 import utils
 
@@ -10,8 +11,9 @@ def connect(username, password, imapServer):
 		m = imaplib.IMAP4_SSL(imapServer)
 		m.login(username, password)
 		utils.log(utils.INFO, 'Successful connection as "{}"'.format(username))	
-	except imaplib.IMAP4.error:
-		sys.exit('Login error')
+	except imaplib.IMAP4.error as e:
+		utils.log(utils.ERROR, 'Login error: {}'.format(str(e)))
+		sys.exit(1)
 		
 	return m
 
