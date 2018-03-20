@@ -1,3 +1,18 @@
+'''
+imap.py: imap's methods used by imap-manager.
+
+imap-manager: Connect and manage your mail account through IMAP.
+Copyright (C) 2016-2018 pofilo <git@pofilo.fr>
+
+This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with this program. If not, see <http://www.gnu.org/licenses/>.
+
+'''
+
+
 import imaplib
 import email
 import mailbox
@@ -5,10 +20,10 @@ import sys
 
 import utils
 
-def connect(username, password, imapServer):
+def connect(hostname, username, password):
 	try:
 		# Connect to the mail account
-		m = imaplib.IMAP4_SSL(imapServer)
+		m = imaplib.IMAP4_SSL(hostname)
 		m.login(username, password)
 		utils.log(utils.INFO, 'Successful connection as "{}"'.format(username))	
 	except imaplib.IMAP4.error as e:
@@ -26,10 +41,10 @@ def check(m):
 	
 	return connectionOk
 
-def processMails(conf, m):
-	directory = conf[utils.directory]
-	# Go into the directory
-	m.select(directory)
+def processMails(config, m):
+	mailbox = config.get(utils.sectionDefault, utils.mailbox)
+	# Go into the mailbox
+	m.select(mailbox)
 
 	# Get the unseen mails of this directory
 	typ, data = m.search(None, 'UNSEEN')
@@ -45,28 +60,28 @@ def processMails(conf, m):
 
 		folder = ''
 		# Check if the mail has a 'subject' rule
-		subject = rawEmail[utils.subject]
+		subject = rawEmail[utils.imapSubject]
 		if subject:
 			subject = utils.decodeSubject(subject)
-			folder = utils.getFolder(conf, utils.subject, subject);
+			folder = utils.getFolder(config, utils.imapSubject, subject);
 			
 		# Check if the mail has a 'from' rule
-		mailFrom = rawEmail[utils.mfrom]
+		mailFrom = rawEmail[utils.imapFrom]
 		if mailFrom:
 			mailFrom = utils.cleanAddress(mailFrom.lower())
 			if not folder:
-				folder = utils.getFolder(conf, utils.mfrom, mailFrom)
+				folder = utils.getFolder(config, utils.imapFrom, mailFrom)
 			
 		# Check if the mail has a 'to' rule
-		mailTo = rawEmail[utils.to]
+		mailTo = rawEmail[utils.imapTo]
 		if mailTo:
 			mailTo = utils.cleanAddress(mailTo.lower())
 			if not folder:
-				folder = utils.getFolder(conf, utils.to, mailTo)
+				folder = utils.getFolder(config, utils.imapTo, mailTo)
 			
 		# If we still don't have a rule for the mail, take the default folder
 		if not folder:
-			folder = utils.getDefaultFolder(conf)
+			folder = utils.getDefaultFolder(config)
 			
 		utils.log(utils.INFO, 'GET mail "{}" from "{}" to "{}" to be moved to "{}"'.format(subject.encode('utf8'), mailFrom.encode('utf8'), mailTo.encode('utf8'), folder.encode('utf8')))
 		# Check if the folder exists

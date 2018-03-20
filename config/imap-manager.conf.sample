@@ -1,0 +1,46 @@
+#
+# imap-manager.conf.sample: imap-manager default configuration file.
+#
+# imap-manager: Connect and manage your mail account through IMAP.
+# Copyright (C) 2016-2018 pofilo <git@pofilo.fr>
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program. If not, see <http://www.gnu.org/licenses/>.
+#
+
+
+#########################
+#        DEFAULT        #
+#########################
+[default]
+imap_hostname = imap.domain.com
+imap_username = example@domain.fr
+imap_password = azerty
+# The IMAP folder where imap-manager will process unread mails.
+imap_mailbox = INBOX
+# Polling interval in seconds (aka the time between each processing)
+# For example if the process takes 3 seconds, the next one will be
+# 8 seconds after the start of it.
+polling_interval = 5
+# If a mail has no rule (no subject nor from nor to rules),
+# it will be moved in this one.
+default_folder = others
+
+#########################
+#        FILTERS        #
+#########################
+
+[subject]
+"[SPAM]" = spamFolder
+"*** SPAM ***" = spamFolder
+
+[from]
+"mail1@domain.com" = folder1
+
+[to]
+"mail1@domain1.com" = folder1
+"mail2@domain1.com" = folder2
+

@@ -1,17 +1,33 @@
+'''
+utils.py: useful and general methods for imap-manager.
+
+imap-manager: Connect and manage your mail account through IMAP.
+Copyright (C) 2016-2018 pofilo <git@pofilo.fr>
+
+This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with this program. If not, see <http://www.gnu.org/licenses/>.
+
+'''
+
+
 from datetime import datetime
 import re, quopri, base64
 
-username = 'username'
-password = 'password'
-imapServer = 'imapServer'
-directory = 'directory'
-sleepDuration = 'sleepDuration'
-directory = 'directory'
-subject = 'subject'
-mfrom = 'from'
-to = 'to'
-default = 'default'
-defaultConfigPath = '../config/config.yaml'
+sectionDefault = 'default'
+hostname = 'imap_hostname'
+username = 'imap_username'
+password = 'imap_password'
+mailbox = 'imap_mailbox'
+pollingInterval = 'polling_interval'
+
+imapSubject = 'subject'
+imapFrom = 'from'
+imapTo = 'to'
+imapDefaultFolder = 'default_folder'
+defaultConfigPath = '../config/imap-manager.conf'
 
 # LOGS
 ERROR = 'ERROR'
@@ -19,19 +35,21 @@ WARN = 'WARN'
 INFO = 'INFO'
 DEBUG = 'DEBUG'
 
-def getFolder(conf, rule, param):
+def getFolder(config, rule, param):
 	folder = ''
 	# Check if the mail has a rule
-	for argument, value in conf[rule].iteritems():
-		if argument in param:
+	for argument, value in list(config.items(rule)):
+		# Remove the quotes
+		argument = argument[1:-1]
+		if argument.lower() in param.lower():
 			folder = value
 			break
 
 	return folder
 	
-def getDefaultFolder(conf):
-	# Get the default folder in the conf file
-	return conf[default]
+def getDefaultFolder(config):
+	# Get the default folder in the config file
+	return config.get(sectionDefault, imapDefaultFolder)
 	
 def cleanAddress(address):
 	# Remove <> added by some client and only get the content inside
