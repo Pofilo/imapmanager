@@ -19,15 +19,16 @@ import mailbox
 import sys
 
 import utils
+from logger import log, ERROR, WARN, INFO, DEBUG
 
 def connect(hostname, username, password):
 	try:
 		# Connect to the mail account
 		m = imaplib.IMAP4_SSL(hostname)
 		m.login(username, password)
-		utils.log(utils.INFO, 'Successful connection as "{}"'.format(username))	
+		log(INFO, 'Successful connection as "{}"'.format(username))
 	except imaplib.IMAP4.error as e:
-		utils.log(utils.ERROR, 'Login error: {}'.format(str(e)))
+		log(ERROR, 'Login error: {}'.format(str(e)))
 		sys.exit(1)
 		
 	return m
@@ -83,7 +84,7 @@ def processMails(config, m):
 		if not folder:
 			folder = utils.getDefaultFolder(config)
 			
-		utils.log(utils.INFO, 'GET mail "{}" from "{}" to "{}" to be moved to "{}"'.format(subject.encode('utf8'), mailFrom.encode('utf8'), mailTo.encode('utf8'), folder.encode('utf8')))
+		log(INFO, 'GET mail "{}" from "{}" to "{}" to be moved to "{}"'.format(subject.encode('utf8'), mailFrom.encode('utf8'), mailTo.encode('utf8'), folder.encode('utf8')))
 		# Check if the folder exists
 		# TODO
 		# boxes = m.list()
@@ -102,6 +103,6 @@ def logout(m):
 	# Close and logout the connection
 	m.close()
 	m.logout()
-	utils.log(utils.INFO, 'Successful disconnection')
+	log(INFO, 'Successful disconnection')
 
 

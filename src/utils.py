@@ -13,7 +13,6 @@ You should have received a copy of the GNU General Public License along with thi
 '''
 
 
-from datetime import datetime
 import re, quopri, base64
 
 sectionDefault = 'default'
@@ -28,12 +27,6 @@ imapFrom = 'from'
 imapTo = 'to'
 imapDefaultFolder = 'default_folder'
 defaultConfigPath = '../config/imap-manager.conf'
-
-# LOGS
-ERROR = 'ERROR'
-WARN = 'WARN'
-INFO = 'INFO'
-DEBUG = 'DEBUG'
 
 def getFolder(config, rule, param):
 	folder = ''
@@ -59,9 +52,6 @@ def cleanAddress(address):
 			address = address.split('>')[0]
 		
 	return address
-
-def log(level, message):
-	print '{} ({}): {}'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S'), level, message)
 
 # Credits: https://stackoverflow.com/a/43393449
 def decodeSubject(subject):

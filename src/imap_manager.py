@@ -20,6 +20,7 @@ from time import sleep
 
 import imap
 import utils
+from logger import log, ERROR, WARN, INFO, DEBUG
 
 running = True
 
@@ -40,15 +41,15 @@ password = config.get(utils.sectionDefault, utils.password)
 mailbox = config.get(utils.sectionDefault, utils.mailbox)
 pollingInterval = config.get(utils.sectionDefault, utils.pollingInterval)
 
-utils.log(utils.INFO, '--------------------')
-utils.log(utils.INFO, 'imap-manager initialized with on "{}" with "{}"'.format(hostname, username))
+log(INFO, '--------------------')
+log(INFO, 'imap-manager initialized with on "{}" with "{}"'.format(hostname, username))
 
 m = imap.connect(hostname, username, password)
 m.select(mailbox)
 
 while running:
 	if(not imap.check(m)):
-		utils.log(utils.INFO, 'Check connection failed, trying to reconnect ...')
+		log(WARN, 'Check connection failed, trying to reconnect ...')
 		m = imap.connect(hostname, username, password)
 	data = imap.processMails(config, m)
 	# If signal occurs during process, there is no need to sleep
@@ -56,6 +57,6 @@ while running:
 		time.sleep(float(pollingInterval))
 
 imap.logout(m)
-utils.log(utils.INFO, 'imap-manager closed.')
+log(INFO, 'imap-manager closed.')
 
 
