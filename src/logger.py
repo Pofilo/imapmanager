@@ -24,4 +24,3 @@ DEBUG = 'DEBUG'
 # Right now, logs are just 'python prints', we should maybe consider implementing a 'real logger'
 def log(level, message):
 	print '{} ({}): {}'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S'), level, message)
-

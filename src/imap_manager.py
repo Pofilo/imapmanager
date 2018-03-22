@@ -58,5 +58,3 @@ while running:
 
 imap.logout(m)
 log(INFO, 'imap-manager closed.')
-
-

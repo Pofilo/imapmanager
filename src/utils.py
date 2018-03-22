@@ -39,18 +39,18 @@ def getFolder(config, rule, param):
 			break
 
 	return folder
-	
+
 def getDefaultFolder(config):
 	# Get the default folder in the config file
 	return config.get(sectionDefault, imapDefaultFolder)
-	
+
 def cleanAddress(address):
 	# Remove <> added by some client and only get the content inside
 	if '<' in address:
 		address = address.split('<')[1]
 		if '>' in address:
 			address = address.split('>')[0]
-		
+
 	return address
 
 # Credits: https://stackoverflow.com/a/43393449
@@ -76,4 +76,3 @@ def decodeSubject(subject):
 		subject = "".join(line)
 
 	return subject
-

@@ -13,7 +13,7 @@ You want to automatically moove your mails into the good folder. However, the us
 
 ## Example
 
-To use the script, you need to use the syntax presented in *config.yaml.sample* (care to not use tabulations but spaces). 
+To use the script, you need to use the syntax presented in *config.yaml.sample* (care to not use tabulations but spaces).
 In the sample, the mail for *mail1@domain.com* will be moved in the folder named *folder1*.
 
 ## Installation

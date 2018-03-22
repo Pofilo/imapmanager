@@ -30,7 +30,7 @@ def connect(hostname, username, password):
 	except imaplib.IMAP4.error as e:
 		log(ERROR, 'Login error: {}'.format(str(e)))
 		sys.exit(1)
-		
+
 	return m
 
 def check(m):
@@ -39,7 +39,7 @@ def check(m):
 		m.check()
 	except:
 		connectionOk = False
-	
+
 	return connectionOk
 
 def processMails(config, m):
@@ -65,38 +65,38 @@ def processMails(config, m):
 		if subject:
 			subject = utils.decodeSubject(subject)
 			folder = utils.getFolder(config, utils.imapSubject, subject);
-			
+
 		# Check if the mail has a 'from' rule
 		mailFrom = rawEmail[utils.imapFrom]
 		if mailFrom:
 			mailFrom = utils.cleanAddress(mailFrom.lower())
 			if not folder:
 				folder = utils.getFolder(config, utils.imapFrom, mailFrom)
-			
+
 		# Check if the mail has a 'to' rule
 		mailTo = rawEmail[utils.imapTo]
 		if mailTo:
 			mailTo = utils.cleanAddress(mailTo.lower())
 			if not folder:
 				folder = utils.getFolder(config, utils.imapTo, mailTo)
-			
+
 		# If we still don't have a rule for the mail, take the default folder
 		if not folder:
 			folder = utils.getDefaultFolder(config)
-			
+
 		log(INFO, 'GET mail "{}" from "{}" to "{}" to be moved to "{}"'.format(subject.encode('utf8'), mailFrom.encode('utf8'), mailTo.encode('utf8'), folder.encode('utf8')))
 		# Check if the folder exists
 		# TODO
 		# boxes = m.list()
 		# for box in boxes[1]:
 		#	print box
-		
+
 		# We copy the mail into the folder
 		m.copy(num, folder)
 		# We delete the original mail
 		typ, data = m.store(num, '+FLAGS', '\\Deleted')
 		m.expunge()
-		count += 1		
+		count += 1
 	return data
 
 def logout(m):
@@ -104,5 +104,3 @@ def logout(m):
 	m.close()
 	m.logout()
 	log(INFO, 'Successful disconnection')
-
-
