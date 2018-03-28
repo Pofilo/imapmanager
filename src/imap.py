@@ -21,10 +21,10 @@ import sys
 import utils
 from logger import log, ERROR, WARN, INFO, DEBUG
 
-def connect(hostname, username, password):
+def connect(hostname, port, username, password):
 	try:
 		# Connect to the mail account
-		m = imaplib.IMAP4_SSL(hostname)
+		m = imaplib.IMAP4_SSL(hostname, port)
 		m.login(username, password)
 		log(INFO, 'Successful connection as "{}"'.format(username))
 	except imaplib.IMAP4.error as e:

@@ -17,6 +17,7 @@ import re, quopri, base64
 
 sectionDefault = 'default'
 hostname = 'imap_hostname'
+port = 'imap_port'
 username = 'imap_username'
 password = 'imap_password'
 mailbox = 'imap_mailbox'

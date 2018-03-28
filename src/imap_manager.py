@@ -36,6 +36,7 @@ config = ConfigParser.ConfigParser()
 config.read(utils.defaultConfigPath)
 
 hostname = config.get(utils.sectionDefault, utils.hostname)
+port = config.get(utils.sectionDefault, utils.port)
 username = config.get(utils.sectionDefault, utils.username)
 password = config.get(utils.sectionDefault, utils.password)
 mailbox = config.get(utils.sectionDefault, utils.mailbox)
@@ -44,13 +45,13 @@ pollingInterval = config.get(utils.sectionDefault, utils.pollingInterval)
 log(INFO, '--------------------')
 log(INFO, 'imap-manager initialized with on "{}" with "{}"'.format(hostname, username))
 
-m = imap.connect(hostname, username, password)
+m = imap.connect(hostname, port, username, password)
 m.select(mailbox)
 
 while running:
 	if(not imap.check(m)):
 		log(WARN, 'Check connection failed, trying to reconnect ...')
-		m = imap.connect(hostname, username, password)
+		m = imap.connect(hostname, port, username, password)
 	data = imap.processMails(config, m)
 	# If signal occurs during process, there is no need to sleep
 	if running:
