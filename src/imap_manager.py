@@ -21,7 +21,7 @@ import os.path
 from time import sleep
 
 import imap
-import utils
+import utils, confUtils
 from logger import log, ERROR, WARN, INFO, DEBUG
 
 running = True
@@ -46,6 +46,8 @@ def openAndLoadConfig(args):
 	else:
 		log(ERROR, 'Config file "{}" not found."'.format(configPath))
 		sys.exit(1)
+
+	confUtils.checkConfig(config)
 
 	return config, configPath
 
