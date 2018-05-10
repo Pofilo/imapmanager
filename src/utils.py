@@ -28,6 +28,7 @@ imapFrom = 'from'
 imapTo = 'to'
 imapDefaultFolder = 'default_folder'
 defaultConfigPath = '../config/imap-manager.conf'
+encoding = 'utf8'
 
 def getFolder(config, rule, param):
 	folder = ''

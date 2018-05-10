@@ -53,43 +53,52 @@ def processMails(config, m):
 	count = 0
 	# Parse the mails
 	for num in data[0].split():
-		num = int(num)-count
-		# See the mail without changing his unread flag
-		typ, data = m.fetch(num, '(BODY.PEEK[])')
-		#data[0][1] is the raw email
-		rawEmail = email.message_from_string(data[0][1])
+		try:
+			num = int(num)-count
+			# See the mail without changing his unread flag
+			typ, data = m.fetch(num, '(BODY.PEEK[])')
+			#data[0][1] is the raw email
+			rawEmail = email.message_from_string(data[0][1])
 
-		folder = ''
-		# Check if the mail has a 'subject' rule
-		subject = rawEmail[utils.imapSubject]
-		if subject:
-			subject = utils.decodeSubject(subject)
-			folder = utils.getFolder(config, utils.imapSubject, subject);
+			folder = ''
+			# Check if the mail has a 'subject' rule
+			subject = rawEmail[utils.imapSubject]
+			if subject:
+				subject = utils.decodeSubject(subject)
+				folder = utils.getFolder(config, utils.imapSubject, subject);
 
-		# Check if the mail has a 'from' rule
-		mailFrom = rawEmail[utils.imapFrom]
-		if mailFrom:
-			mailFrom = utils.cleanAddress(mailFrom.lower())
+			# Check if the mail has a 'from' rule
+			mailFrom = rawEmail[utils.imapFrom]
+			if mailFrom:
+				mailFrom = utils.cleanAddress(mailFrom.lower())
+				if not folder:
+					folder = utils.getFolder(config, utils.imapFrom, mailFrom)
+
+			# Check if the mail has a 'to' rule
+			mailTo = rawEmail[utils.imapTo]
+			if mailTo:
+				mailTo = utils.cleanAddress(mailTo.lower())
+				if not folder:
+					folder = utils.getFolder(config, utils.imapTo, mailTo)
+
+			# If we still don't have a rule for the mail, take the default folder
 			if not folder:
-				folder = utils.getFolder(config, utils.imapFrom, mailFrom)
+				folder = utils.getDefaultFolder(config)
 
-		# Check if the mail has a 'to' rule
-		mailTo = rawEmail[utils.imapTo]
-		if mailTo:
-			mailTo = utils.cleanAddress(mailTo.lower())
-			if not folder:
-				folder = utils.getFolder(config, utils.imapTo, mailTo)
-
-		# If we still don't have a rule for the mail, take the default folder
-		if not folder:
+			log(INFO, 'GET mail "{}" from "{}" to "{}" to be moved to "{}"'.format(
+				subject.encode(utils.encoding),
+				mailFrom.encode(utils.encoding),
+				mailTo.encode(utils.encoding),
+				folder.encode(utils.encoding)))
+				
+			# Check if the folder exists
+			# TODO
+			# boxes = m.list()
+			# for box in boxes[1]:
+			#	print box
+		except BaseException as e:
 			folder = utils.getDefaultFolder(config)
-
-		log(INFO, 'GET mail "{}" from "{}" to "{}" to be moved to "{}"'.format(subject.encode('utf8'), mailFrom.encode('utf8'), mailTo.encode('utf8'), folder.encode('utf8')))
-		# Check if the folder exists
-		# TODO
-		# boxes = m.list()
-		# for box in boxes[1]:
-		#	print box
+			log(ERROR, 'Error processing an email, moving it into "{}", error: "{}"'.format(folder, str(e)))
 
 		# We copy the mail into the folder
 		m.copy(num, folder)
