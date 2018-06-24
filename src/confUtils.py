@@ -20,19 +20,19 @@ from logger import log, ERROR, WARN, INFO, DEBUG
 
 def check_config(config):
 	# Check all section exist
-	check_config_section(config, utils.SECTION_DEFAULT_NAME)
+	check_config_section(config, utils.SECTION_GENERAL_NAME)
 	check_config_section(config, utils.SECTION_SUBJECT_NAME)
 	check_config_section(config, utils.SECTION_FROM_NAME)
 	check_config_section(config, utils.SECTION_TO_NAME)
 
 	# Check all mandatories keys
-	check_config_key(config, utils.SECTION_DEFAULT_NAME, utils.HOSTNAME_NAME)
-	check_config_key(config, utils.SECTION_DEFAULT_NAME, utils.PORT_NAME)
-	check_config_key(config, utils.SECTION_DEFAULT_NAME, utils.USERNAME_NAME)
-	check_config_key(config, utils.SECTION_DEFAULT_NAME, utils.PASSWORD_NAME)
-	check_config_key(config, utils.SECTION_DEFAULT_NAME, utils.MAILBOX_NAME)
-	check_config_key(config, utils.SECTION_DEFAULT_NAME, utils.POLLING_INTERVAL_NAME)
-	check_config_key(config, utils.SECTION_DEFAULT_NAME, utils.IMAP_DEFAULT_FOLDER_NAME)
+	check_config_key(config, utils.SECTION_GENERAL_NAME, utils.HOSTNAME_NAME)
+	check_config_key(config, utils.SECTION_GENERAL_NAME, utils.PORT_NAME)
+	check_config_key(config, utils.SECTION_GENERAL_NAME, utils.USERNAME_NAME)
+	check_config_key(config, utils.SECTION_GENERAL_NAME, utils.PASSWORD_NAME)
+	check_config_key(config, utils.SECTION_GENERAL_NAME, utils.MAILBOX_NAME)
+	check_config_key(config, utils.SECTION_GENERAL_NAME, utils.POLLING_INTERVAL_NAME)
+	check_config_key(config, utils.SECTION_GENERAL_NAME, utils.IMAP_DEFAULT_FOLDER_NAME)
 
 def check_config_section(config, section):
 	if not config.has_section(section):

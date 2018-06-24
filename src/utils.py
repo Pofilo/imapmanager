@@ -15,7 +15,7 @@ You should have received a copy of the GNU General Public License along with thi
 
 import re, quopri, base64
 
-SECTION_DEFAULT_NAME = 'DEFAULT'
+SECTION_GENERAL_NAME = 'GENERAL'
 HOSTNAME_NAME = 'IMAP_HOSTNAME'
 PORT_NAME = 'IMAP_PORT'
 USERNAME_NAME = 'IMAP_USERNAME'
@@ -47,7 +47,7 @@ def get_folder(config, rule, param):
 
 def get_default_folder(config):
 	# Get the default folder in the config file
-	return config.get(SECTION_DEFAULT_NAME, IMAP_DEFAULT_FOLDER_NAME)
+	return config.get(SECTION_GENERAL_NAME, IMAP_DEFAULT_FOLDER_NAME)
 
 def clean_address(address):
 	# Remove <> added by some client and only get the content inside

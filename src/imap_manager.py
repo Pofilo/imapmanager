@@ -64,12 +64,12 @@ def main():
 
 	# Open conf and load parameters
 	config, config_path = open_and_load_config(args)
-	hostname = config.get(utils.SECTION_DEFAULT_NAME, utils.HOSTNAME_NAME)
-	port = config.get(utils.SECTION_DEFAULT_NAME, utils.PORT_NAME)
-	username = config.get(utils.SECTION_DEFAULT_NAME, utils.USERNAME_NAME)
-	password = config.get(utils.SECTION_DEFAULT_NAME, utils.PASSWORD_NAME)
-	mailbox = config.get(utils.SECTION_DEFAULT_NAME, utils.MAILBOX_NAME)
-	polling_interval = config.get(utils.SECTION_DEFAULT_NAME, utils.POLLING_INTERVAL_NAME)
+	hostname = config.get(utils.SECTION_GENERAL_NAME, utils.HOSTNAME_NAME)
+	port = config.get(utils.SECTION_GENERAL_NAME, utils.PORT_NAME)
+	username = config.get(utils.SECTION_GENERAL_NAME, utils.USERNAME_NAME)
+	password = config.get(utils.SECTION_GENERAL_NAME, utils.PASSWORD_NAME)
+	mailbox = config.get(utils.SECTION_GENERAL_NAME, utils.MAILBOX_NAME)
+	polling_interval = config.get(utils.SECTION_GENERAL_NAME, utils.POLLING_INTERVAL_NAME)
 
 	log(INFO, 'imap-manager initialized with on "{}" with "{}" using "{}"'.format(hostname, username, config_path))
 

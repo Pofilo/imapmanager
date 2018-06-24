@@ -43,7 +43,7 @@ def check(m):
 	return connection_ok
 
 def process_mails(config, m):
-	mailbox = config.get(utils.SECTION_DEFAULT_NAME, utils.MAILBOX_NAME)
+	mailbox = config.get(utils.SECTION_GENERAL_NAME, utils.MAILBOX_NAME)
 	# Go into the mailbox
 	m.select(mailbox)
 
