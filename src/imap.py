@@ -64,26 +64,26 @@ def process_mails(config, m):
 			# Check if the mail has a 'subject' rule
 			subject = raw_email[utils.IMAP_SUBJECT]
 			if subject:
-				subject = utils.decodeSubject(subject)
-				folder = utils.getFolder(config, utils.SECTION_SUBJECT_NAME, subject)
+				subject = utils.decode_subject(subject)
+				folder = utils.get_folder(config, utils.SECTION_SUBJECT_NAME, subject)
 
 			# Check if the mail has a 'from' rule
 			mail_from = raw_email[utils.IMAP_FROM]
 			if mail_from:
-				mail_from = utils.cleanAddress(mail_from.lower())
+				mail_from = utils.clean_address(mail_from.lower())
 				if not folder:
-					folder = utils.getFolder(config, utils.SECTION_FROM_NAME, mail_from)
+					folder = utils.get_folder(config, utils.SECTION_FROM_NAME, mail_from)
 
 			# Check if the mail has a 'to' rule
 			mail_to = raw_email[utils.IMAP_TO]
 			if mail_to:
-				mail_to = utils.cleanAddress(mail_to.lower())
+				mail_to = utils.clean_address(mail_to.lower())
 				if not folder:
-					folder = utils.getFolder(config, utils.SECTION_TO_NAME, mail_to)
+					folder = utils.get_folder(config, utils.SECTION_TO_NAME, mail_to)
 
 			# If we still don't have a rule for the mail, take the default folder
 			if not folder:
-				folder = utils.getDefaultFolder(config)
+				folder = utils.get_default_folder(config)
 
 			log(INFO, 'GET mail "{}" from "{}" to "{}" to be moved to "{}"'.format(
 				subject.encode(utils.ENCODING),
@@ -97,7 +97,7 @@ def process_mails(config, m):
 			# for box in boxes[1]:
 			#	print box
 		except BaseException as e:
-			folder = utils.getDefaultFolder(config)
+			folder = utils.get_default_folder(config)
 			log(ERROR, 'Error processing an email, moving it into "{}", error: "{}"'.format(folder, str(e)))
 
 		# We copy the mail into the folder

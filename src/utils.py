@@ -33,7 +33,7 @@ IMAP_TO = 'to'
 DEFAULT_CONFIG_PATH = '../config/imap-manager.conf'
 ENCODING = 'utf8'
 
-def getFolder(config, rule, param):
+def get_folder(config, rule, param):
 	folder = ''
 	# Check if the mail has a rule
 	for argument, value in list(config.items(rule)):
@@ -45,11 +45,11 @@ def getFolder(config, rule, param):
 
 	return folder
 
-def getDefaultFolder(config):
+def get_default_folder(config):
 	# Get the default folder in the config file
 	return config.get(SECTION_DEFAULT_NAME, IMAP_DEFAULT_FOLDER_NAME)
 
-def cleanAddress(address):
+def clean_address(address):
 	# Remove <> added by some client and only get the content inside
 	if '<' in address:
 		address = address.split('<')[1]
@@ -59,7 +59,7 @@ def cleanAddress(address):
 	return address
 
 # Credits: https://stackoverflow.com/a/43393449
-def decodeSubject(subject):
+def decode_subject(subject):
 	pattern = re.compile(r'(([^=]*)=\?([^\?]*)\?([BbQq])\?([^\?]*)\?=([^=]*))', re.IGNORECASE)
 	data = pattern.findall(subject)
 	line = []
