@@ -34,15 +34,15 @@ def connect(hostname, port, username, password):
 	return m
 
 def check(m):
-	connectionOk = True
+	connection_ok = True
 	try:
 		m.check()
 	except:
-		connectionOk = False
+		connection_ok = False
 
-	return connectionOk
+	return connection_ok
 
-def processMails(config, m):
+def process_mails(config, m):
 	mailbox = config.get(utils.sectionDefault, utils.mailbox)
 	# Go into the mailbox
 	m.select(mailbox)
@@ -58,28 +58,28 @@ def processMails(config, m):
 			# See the mail without changing his unread flag
 			typ, data = m.fetch(num, '(BODY.PEEK[])')
 			#data[0][1] is the raw email
-			rawEmail = email.message_from_string(data[0][1])
+			raw_email = email.message_from_string(data[0][1])
 
 			folder = ''
 			# Check if the mail has a 'subject' rule
-			subject = rawEmail[utils.imapSubject]
+			subject = raw_email[utils.imapSubject]
 			if subject:
 				subject = utils.decodeSubject(subject)
 				folder = utils.getFolder(config, utils.imapSubject, subject);
 
 			# Check if the mail has a 'from' rule
-			mailFrom = rawEmail[utils.imapFrom]
-			if mailFrom:
-				mailFrom = utils.cleanAddress(mailFrom.lower())
+			mail_from = raw_email[utils.imapFrom]
+			if mail_from:
+				mail_from = utils.cleanAddress(mail_from.lower())
 				if not folder:
-					folder = utils.getFolder(config, utils.imapFrom, mailFrom)
+					folder = utils.getFolder(config, utils.imapFrom, mail_from)
 
 			# Check if the mail has a 'to' rule
-			mailTo = rawEmail[utils.imapTo]
-			if mailTo:
-				mailTo = utils.cleanAddress(mailTo.lower())
+			mail_to = raw_email[utils.imapTo]
+			if mail_to:
+				mail_to = utils.cleanAddress(mail_to.lower())
 				if not folder:
-					folder = utils.getFolder(config, utils.imapTo, mailTo)
+					folder = utils.getFolder(config, utils.imapTo, mail_to)
 
 			# If we still don't have a rule for the mail, take the default folder
 			if not folder:
@@ -87,8 +87,8 @@ def processMails(config, m):
 
 			log(INFO, 'GET mail "{}" from "{}" to "{}" to be moved to "{}"'.format(
 				subject.encode(utils.encoding),
-				mailFrom.encode(utils.encoding),
-				mailTo.encode(utils.encoding),
+				mail_from.encode(utils.encoding),
+				mail_to.encode(utils.encoding),
 				folder.encode(utils.encoding)))
 				
 			# Check if the folder exists

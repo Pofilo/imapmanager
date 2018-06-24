@@ -80,7 +80,7 @@ def main():
 		if(not imap.check(m)):
 			log(WARN, 'Check connection failed, trying to reconnect ...')
 			m = imap.connect(hostname, port, username, password)
-		data = imap.processMails(config, m)
+		data = imap.process_mails(config, m)
 		# If signal occurs during process, there is no need to sleep
 		if running:
 			time.sleep(float(pollingInterval))
