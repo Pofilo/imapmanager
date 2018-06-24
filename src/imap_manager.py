@@ -47,7 +47,7 @@ def openAndLoadConfig(args):
 		log(ERROR, 'Config file "{}" not found."'.format(configPath))
 		sys.exit(1)
 
-	confUtils.checkConfig(config)
+	confUtils.check_config(config)
 
 	return config, configPath
 
