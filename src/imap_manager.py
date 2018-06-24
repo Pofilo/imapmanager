@@ -34,7 +34,7 @@ def open_and_load_config(args):
 	if args.config_path:
 		config_path = args.config_path
 	else:
-		config_path = utils.defaultConfigPath
+		config_path = utils.DEFAULT_CONFIG_PATH
 	config = ConfigParser.SafeConfigParser()
 
 	if os.path.isfile(config_path):
@@ -64,12 +64,12 @@ def main():
 
 	# Open conf and load parameters
 	config, config_path = open_and_load_config(args)
-	hostname = config.get(utils.sectionDefault, utils.hostname)
-	port = config.get(utils.sectionDefault, utils.port)
-	username = config.get(utils.sectionDefault, utils.username)
-	password = config.get(utils.sectionDefault, utils.password)
-	mailbox = config.get(utils.sectionDefault, utils.mailbox)
-	polling_interval = config.get(utils.sectionDefault, utils.pollingInterval)
+	hostname = config.get(utils.SECTION_DEFAULT_NAME, utils.HOSTNAME_NAME)
+	port = config.get(utils.SECTION_DEFAULT_NAME, utils.PORT_NAME)
+	username = config.get(utils.SECTION_DEFAULT_NAME, utils.USERNAME_NAME)
+	password = config.get(utils.SECTION_DEFAULT_NAME, utils.PASSWORD_NAME)
+	mailbox = config.get(utils.SECTION_DEFAULT_NAME, utils.MAILBOX_NAME)
+	polling_interval = config.get(utils.SECTION_DEFAULT_NAME, utils.POLLING_INTERVAL_NAME)
 
 	log(INFO, 'imap-manager initialized with on "{}" with "{}" using "{}"'.format(hostname, username, config_path))
 

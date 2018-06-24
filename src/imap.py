@@ -43,7 +43,7 @@ def check(m):
 	return connection_ok
 
 def process_mails(config, m):
-	mailbox = config.get(utils.sectionDefault, utils.mailbox)
+	mailbox = config.get(utils.SECTION_DEFAULT_NAME, utils.MAILBOX_NAME)
 	# Go into the mailbox
 	m.select(mailbox)
 
@@ -62,34 +62,34 @@ def process_mails(config, m):
 
 			folder = ''
 			# Check if the mail has a 'subject' rule
-			subject = raw_email[utils.imapSubject]
+			subject = raw_email[utils.IMAP_SUBJECT]
 			if subject:
 				subject = utils.decodeSubject(subject)
-				folder = utils.getFolder(config, utils.imapSubject, subject);
+				folder = utils.getFolder(config, utils.SECTION_SUBJECT_NAME, subject)
 
 			# Check if the mail has a 'from' rule
-			mail_from = raw_email[utils.imapFrom]
+			mail_from = raw_email[utils.IMAP_FROM]
 			if mail_from:
 				mail_from = utils.cleanAddress(mail_from.lower())
 				if not folder:
-					folder = utils.getFolder(config, utils.imapFrom, mail_from)
+					folder = utils.getFolder(config, utils.SECTION_FROM_NAME, mail_from)
 
 			# Check if the mail has a 'to' rule
-			mail_to = raw_email[utils.imapTo]
+			mail_to = raw_email[utils.IMAP_TO]
 			if mail_to:
 				mail_to = utils.cleanAddress(mail_to.lower())
 				if not folder:
-					folder = utils.getFolder(config, utils.imapTo, mail_to)
+					folder = utils.getFolder(config, utils.SECTION_TO_NAME, mail_to)
 
 			# If we still don't have a rule for the mail, take the default folder
 			if not folder:
 				folder = utils.getDefaultFolder(config)
 
 			log(INFO, 'GET mail "{}" from "{}" to "{}" to be moved to "{}"'.format(
-				subject.encode(utils.encoding),
-				mail_from.encode(utils.encoding),
-				mail_to.encode(utils.encoding),
-				folder.encode(utils.encoding)))
+				subject.encode(utils.ENCODING),
+				mail_from.encode(utils.ENCODING),
+				mail_to.encode(utils.ENCODING),
+				folder.encode(utils.ENCODING)))
 				
 			# Check if the folder exists
 			# TODO

@@ -15,20 +15,23 @@ You should have received a copy of the GNU General Public License along with thi
 
 import re, quopri, base64
 
-sectionDefault = 'default'
-hostname = 'imap_hostname'
-port = 'imap_port'
-username = 'imap_username'
-password = 'imap_password'
-mailbox = 'imap_mailbox'
-pollingInterval = 'polling_interval'
+SECTION_DEFAULT_NAME = 'DEFAULT'
+HOSTNAME_NAME = 'IMAP_HOSTNAME'
+PORT_NAME = 'IMAP_PORT'
+USERNAME_NAME = 'IMAP_USERNAME'
+PASSWORD_NAME = 'IMAP_PASSWORD'
+MAILBOX_NAME = 'IMAP_MAILBOX'
+POLLING_INTERVAL_NAME = 'POLLING_INTERVAL'
+IMAP_DEFAULT_FOLDER_NAME = 'DEFAULT_FOLDER'
 
-imapSubject = 'subject'
-imapFrom = 'from'
-imapTo = 'to'
-imapDefaultFolder = 'default_folder'
-defaultConfigPath = '../config/imap-manager.conf'
-encoding = 'utf8'
+SECTION_SUBJECT_NAME = 'SUBJECT'
+IMAP_SUBJECT = 'subject'
+SECTION_FROM_NAME = 'FROM'
+IMAP_FROM = 'from'
+SECTION_TO_NAME = 'TO'
+IMAP_TO = 'to'
+DEFAULT_CONFIG_PATH = '../config/imap-manager.conf'
+ENCODING = 'utf8'
 
 def getFolder(config, rule, param):
 	folder = ''
@@ -44,7 +47,7 @@ def getFolder(config, rule, param):
 
 def getDefaultFolder(config):
 	# Get the default folder in the config file
-	return config.get(sectionDefault, imapDefaultFolder)
+	return config.get(SECTION_DEFAULT_NAME, IMAP_DEFAULT_FOLDER_NAME)
 
 def cleanAddress(address):
 	# Remove <> added by some client and only get the content inside
@@ -62,7 +65,7 @@ def decodeSubject(subject):
 	line = []
 	if data:
 		for g in data:
-			(raw,extra1,encoding,method,string,extra) = g
+			(raw,extra1,ENCODING,method,string,extra) = g
 			extra1 = extra1.replace('\r','').replace('\n','').strip()
 			if len(extra1) > 0:
 				line.append(extra1)
@@ -71,7 +74,7 @@ def decodeSubject(subject):
 				string = string.replace("_"," ").strip()
 			if method.lower() == 'b':
 				string = base64.b64decode(string)
-			line.append(string.decode(encoding,errors='ignore'))
+			line.append(string.decode(ENCODING,errors='ignore'))
 			extra = extra.replace('\r','').replace('\n','').strip()
 			if len(extra) > 0:
 				line.append(extra)
