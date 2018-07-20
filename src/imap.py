@@ -30,6 +30,9 @@ def connect(hostname, port, username, password):
 	except imaplib.IMAP4.error as e:
 		log(ERROR, 'Login error: {}'.format(str(e)))
 		sys.exit(1)
+	except BaseException as e:
+		log(ERROR, 'Login error: {}'.format(str(e)))
+		sys.exit(1)
 
 	return m
 
