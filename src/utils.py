@@ -79,5 +79,9 @@ def decode_subject(subject):
 			if len(extra) > 0:
 				line.append(extra)
 		subject = "".join(line)
+	
+	if isinstance(subject, unicode):
+		# Subject is unicode..
+		subject = subject.encode(ENCODING)
 
 	return subject

@@ -89,10 +89,7 @@ def process_mails(config, m):
 				folder = utils.get_default_folder(config)
 
 			log(INFO, 'GET mail "{}" from "{}" to "{}" to be moved to "{}"'.format(
-				subject.encode(utils.ENCODING),
-				mail_from.encode(utils.ENCODING),
-				mail_to.encode(utils.ENCODING),
-				folder.encode(utils.ENCODING)))
+				subject, mail_from, mail_to, folder))
 				
 			# Check if the folder exists
 			# TODO
