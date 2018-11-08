@@ -55,6 +55,9 @@ def open_and_load_config(args):
 def main():
 	my_logger.log(INFO, '--------------------')
 
+	# Check python version
+	utils.check_python_version()
+	
 	signal.signal(signal.SIGINT, signal_handler)
 	signal.signal(signal.SIGTERM, signal_handler)
 
