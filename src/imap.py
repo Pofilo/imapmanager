@@ -19,19 +19,21 @@ import mailbox
 import sys
 
 import utils
-from logger import log, ERROR, WARN, INFO, DEBUG
+from logger import Logger, FATAL, ERROR, WARN, INFO, DEBUG
+
+my_logger = Logger()
 
 def connect(hostname, port, username, password):
 	try:
 		# Connect to the mail account
 		m = imaplib.IMAP4_SSL(hostname, port)
 		m.login(username, password)
-		log(INFO, 'Successful connection as "{}"'.format(username))
+		my_logger.log(INFO, 'Successful connection as "{}"'.format(username))
 	except imaplib.IMAP4.error as e:
-		log(ERROR, 'Login error: {}'.format(str(e)))
+		my_logger.log(ERROR, 'Login error: {}'.format(str(e)))
 		sys.exit(1)
 	except BaseException as e:
-		log(ERROR, 'Login error: {}'.format(str(e)))
+		my_logger.log(ERROR, 'Login error: {}'.format(str(e)))
 		sys.exit(1)
 
 	return m
@@ -88,7 +90,7 @@ def process_mails(config, m):
 			if not folder:
 				folder = utils.get_default_folder(config)
 
-			log(INFO, 'GET mail "{}" from "{}" to "{}" to be moved to "{}"'.format(
+			my_logger.log(INFO, 'GET mail "{}" from "{}" to "{}" to be moved to "{}"'.format(
 				subject, mail_from, mail_to, folder))
 				
 			# Check if the folder exists
@@ -98,7 +100,7 @@ def process_mails(config, m):
 			#	print box
 		except BaseException as e:
 			folder = utils.get_default_folder(config)
-			log(ERROR, 'Error processing an email, moving it into "{}", error: "{}"'.format(folder, str(e)))
+			my_logger.log(ERROR, 'Error processing an email, moving it into "{}", error: "{}"'.format(folder, str(e)))
 
 		# We copy the mail into the folder
 		m.copy(num, folder)
@@ -112,4 +114,4 @@ def logout(m):
 	# Close and logout the connection
 	m.close()
 	m.logout()
-	log(INFO, 'Successful disconnection')
+	my_logger.log(INFO, 'Successful disconnection')
