@@ -39,59 +39,59 @@ DEFAULT_CONFIG_PATH = '../config/imap-manager.conf'
 ENCODING = 'utf8'
 
 def get_folder(config, rule, param):
-	folder = ''
-	# Check if the mail has a rule
-	for argument, value in list(config.items(rule)):
-		# Remove the quotes
-		argument = argument[1:-1]
-		if argument.lower() in param.lower():
-			folder = value
-			break
+    folder = ''
+    # Check if the mail has a rule
+    for argument, value in list(config.items(rule)):
+        # Remove the quotes
+        argument = argument[1:-1]
+        if argument.lower() in param.lower():
+            folder = value
+            break
 
-	return folder
+    return folder
 
 def get_default_folder(config):
-	# Get the default folder in the config file
-	return config.get(SECTION_GENERAL_NAME, IMAP_DEFAULT_FOLDER_NAME)
+    # Get the default folder in the config file
+    return config.get(SECTION_GENERAL_NAME, IMAP_DEFAULT_FOLDER_NAME)
 
 def clean_address(address):
-	# Remove <> added by some client and only get the content inside
-	if '<' in address:
-		address = address.split('<')[1]
-		if '>' in address:
-			address = address.split('>')[0]
+    # Remove <> added by some client and only get the content inside
+    if '<' in address:
+        address = address.split('<')[1]
+        if '>' in address:
+            address = address.split('>')[0]
 
-	return address
+    return address
 
 # Credits: https://stackoverflow.com/a/43393449
 def decode_subject(subject):
-	pattern = re.compile(r'(([^=]*)=\?([^\?]*)\?([BbQq])\?([^\?]*)\?=([^=]*))', re.IGNORECASE)
-	data = pattern.findall(subject)
-	line = []
-	if data:
-		for g in data:
-			(raw,extra1,ENCODING,method,string,extra) = g
-			extra1 = extra1.replace('\r','').replace('\n','').strip()
-			if len(extra1) > 0:
-				line.append(extra1)
-			if method.lower() == 'q':
-				string = quopri.decodestring(string)
-				string = string.replace("_"," ").strip()
-			if method.lower() == 'b':
-				string = base64.b64decode(string)
-			line.append(string.decode(ENCODING,errors='ignore'))
-			extra = extra.replace('\r','').replace('\n','').strip()
-			if len(extra) > 0:
-				line.append(extra)
-		subject = "".join(line)
-	
-	if isinstance(subject, unicode):
-		# Subject is unicode..
-		subject = subject.encode(ENCODING)
+    pattern = re.compile(r'(([^=]*)=\?([^\?]*)\?([BbQq])\?([^\?]*)\?=([^=]*))', re.IGNORECASE)
+    data = pattern.findall(subject)
+    line = []
+    if data:
+        for g in data:
+            (raw,extra1,ENCODING,method,string,extra) = g
+            extra1 = extra1.replace('\r','').replace('\n','').strip()
+            if len(extra1) > 0:
+                line.append(extra1)
+            if method.lower() == 'q':
+                string = quopri.decodestring(string)
+                string = string.replace("_"," ").strip()
+            if method.lower() == 'b':
+                string = base64.b64decode(string)
+            line.append(string.decode(ENCODING,errors='ignore'))
+            extra = extra.replace('\r','').replace('\n','').strip()
+            if len(extra) > 0:
+                line.append(extra)
+        subject = "".join(line)
+    
+    if isinstance(subject, unicode):
+        # Subject is unicode..
+        subject = subject.encode(ENCODING)
 
-	return subject
+    return subject
 
 def check_python_version():
-	if sys.version_info <= (3, 7):
-		my_logger.log(ERROR, 'The script needs at least python 3.7')
-		sys.exit(1)
+    if sys.version_info <= (3, 7):
+        my_logger.log(ERROR, 'The script needs at least python 3.7')
+        sys.exit(1)

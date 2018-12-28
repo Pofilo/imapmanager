@@ -21,27 +21,27 @@ from logger import Logger, FATAL, ERROR, WARN, INFO, DEBUG
 my_logger = Logger()
 
 def check_config(config):
-	# Check all section exist
-	check_config_section(config, utils.SECTION_GENERAL_NAME)
-	check_config_section(config, utils.SECTION_SUBJECT_NAME)
-	check_config_section(config, utils.SECTION_FROM_NAME)
-	check_config_section(config, utils.SECTION_TO_NAME)
+    # Check all section exist
+    check_config_section(config, utils.SECTION_GENERAL_NAME)
+    check_config_section(config, utils.SECTION_SUBJECT_NAME)
+    check_config_section(config, utils.SECTION_FROM_NAME)
+    check_config_section(config, utils.SECTION_TO_NAME)
 
-	# Check all mandatories keys
-	check_config_key(config, utils.SECTION_GENERAL_NAME, utils.HOSTNAME_NAME)
-	check_config_key(config, utils.SECTION_GENERAL_NAME, utils.PORT_NAME)
-	check_config_key(config, utils.SECTION_GENERAL_NAME, utils.USERNAME_NAME)
-	check_config_key(config, utils.SECTION_GENERAL_NAME, utils.PASSWORD_NAME)
-	check_config_key(config, utils.SECTION_GENERAL_NAME, utils.MAILBOX_NAME)
-	check_config_key(config, utils.SECTION_GENERAL_NAME, utils.POLLING_INTERVAL_NAME)
-	check_config_key(config, utils.SECTION_GENERAL_NAME, utils.IMAP_DEFAULT_FOLDER_NAME)
+    # Check all mandatories keys
+    check_config_key(config, utils.SECTION_GENERAL_NAME, utils.HOSTNAME_NAME)
+    check_config_key(config, utils.SECTION_GENERAL_NAME, utils.PORT_NAME)
+    check_config_key(config, utils.SECTION_GENERAL_NAME, utils.USERNAME_NAME)
+    check_config_key(config, utils.SECTION_GENERAL_NAME, utils.PASSWORD_NAME)
+    check_config_key(config, utils.SECTION_GENERAL_NAME, utils.MAILBOX_NAME)
+    check_config_key(config, utils.SECTION_GENERAL_NAME, utils.POLLING_INTERVAL_NAME)
+    check_config_key(config, utils.SECTION_GENERAL_NAME, utils.IMAP_DEFAULT_FOLDER_NAME)
 
 def check_config_section(config, section):
-	if not config.has_section(section):
-		my_logger.log(ERROR, 'No section "{}" in config file'.format(section))
-		sys.exit(1)
+    if not config.has_section(section):
+        my_logger.log(ERROR, 'No section "{}" in config file'.format(section))
+        sys.exit(1)
 
 def check_config_key(config, section, key):
-	if not config.has_option(section, key):
-		my_logger.log(ERROR, 'No key "{}" in section "{}" in config file'.format(key, section))
-		sys.exit(1)
+    if not config.has_option(section, key):
+        my_logger.log(ERROR, 'No key "{}" in section "{}" in config file'.format(key, section))
+        sys.exit(1)
