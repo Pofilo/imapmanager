@@ -16,7 +16,7 @@ You should have received a copy of the GNU General Public License along with thi
 import argparse
 import imaplib
 import sys, signal, time
-import ConfigParser
+import configparser
 import os.path
 from time import sleep
 
@@ -36,12 +36,12 @@ def open_and_load_config(args):
 		config_path = args.config_path
 	else:
 		config_path = utils.DEFAULT_CONFIG_PATH
-	config = ConfigParser.SafeConfigParser()
+	config = configparser.ConfigParser()
 
 	if os.path.isfile(config_path):
 		try:
 			config.read(config_path)
-		except ConfigParser.ParsingError as e:
+		except configparser.ParsingError as e:
 			my_logger.log(ERROR, 'Parsing error: {}'.format(str(e)))
 			sys.exit(1)
 	else:
@@ -68,7 +68,7 @@ def main():
 
 	# Open conf and load parameters
 	config, config_path = open_and_load_config(args)
-	my_logger.level_used = config.get(utils.SECTION_DEFAULT_NAME, utils.LOG_LEVEL)
+	my_logger.level_used = config.get(utils.SECTION_GENERAL_NAME, utils.LOG_LEVEL)
 	hostname = config.get(utils.SECTION_GENERAL_NAME, utils.HOSTNAME_NAME)
 	port = config.get(utils.SECTION_GENERAL_NAME, utils.PORT_NAME)
 	username = config.get(utils.SECTION_GENERAL_NAME, utils.USERNAME_NAME)

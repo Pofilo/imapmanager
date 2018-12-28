@@ -13,7 +13,7 @@ You should have received a copy of the GNU General Public License along with thi
 '''
 
 
-import re, quopri, base64
+import re, quopri, base64, sys
 
 from logger import Logger, FATAL, ERROR, WARN, INFO, DEBUG
 
