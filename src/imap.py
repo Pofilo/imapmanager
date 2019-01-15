@@ -57,13 +57,16 @@ def process_mails(config, m):
     # Counter of the number of mails proccessed
     count = 0
     # Parse the mails
+    # TODO
+    # This for loop is called individually even if there is multiple mails
+    # Check the good usage to parse mails
     for num in data[0].split():
+        num = str(int(num)-count)
         try:
-            num = int(num)-count
             # See the mail without changing his unread flag
             typ, data = m.fetch(num, '(BODY.PEEK[])')
             #data[0][1] is the raw email
-            raw_email = email.message_from_string(data[0][1])
+            raw_email = email.message_from_bytes(data[0][1])
 
             folder = ''
             # Check if the mail has a 'subject' rule

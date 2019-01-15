@@ -70,24 +70,22 @@ def decode_subject(subject):
     line = []
     if data:
         for g in data:
-            (raw,extra1,ENCODING,method,string,extra) = g
+            (raw,extra1,encoding,method,string,extra) = g
             extra1 = extra1.replace('\r','').replace('\n','').strip()
             if len(extra1) > 0:
                 line.append(extra1)
             if method.lower() == 'q':
                 string = quopri.decodestring(string)
+                string = string.decode(encoding,errors='ignore')
                 string = string.replace("_"," ").strip()
             if method.lower() == 'b':
                 string = base64.b64decode(string)
-            line.append(string.decode(ENCODING,errors='ignore'))
+                string = string.decode(encoding,errors='ignore')
+            line.append(string)
             extra = extra.replace('\r','').replace('\n','').strip()
             if len(extra) > 0:
                 line.append(extra)
         subject = "".join(line)
-    
-    if isinstance(subject, unicode):
-        # Subject is unicode..
-        subject = subject.encode(ENCODING)
 
     return subject
 
