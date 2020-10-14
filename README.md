@@ -40,3 +40,4 @@ This project is licensed under the GNU GPL License. See the [LICENSE](https://gi
 ## Bugs
 
 If you experience an issue, you have other ideas to the developpement or anything else, feel free to [report it](https://git.pofilo.fr/pofilo/imap-manager/issues) or [fix it with a PR](https://git.pofilo.fr/pofilo/imap-manager/pulls)!
+

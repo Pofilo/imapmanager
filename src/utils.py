@@ -93,3 +93,4 @@ def check_python_version():
     if sys.version_info <= (3, 7):
         my_logger.log(ERROR, 'The script needs at least python 3.7')
         sys.exit(1)
+

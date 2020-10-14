@@ -95,7 +95,7 @@ def process_mails(config, m):
 
             my_logger.log(INFO, 'GET mail "{}" from "{}" to "{}" to be moved to "{}"'.format(
                 subject, mail_from, mail_to, folder))
-                
+
             # Check if the folder exists
             # TODO
             # boxes = m.list()
@@ -118,3 +118,4 @@ def logout(m):
     m.close()
     m.logout()
     my_logger.log(INFO, 'Successful disconnection')
+

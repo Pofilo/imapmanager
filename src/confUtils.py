@@ -45,3 +45,4 @@ def check_config_key(config, section, key):
     if not config.has_option(section, key):
         my_logger.log(ERROR, 'No key "{}" in section "{}" in config file'.format(key, section))
         sys.exit(1)
+

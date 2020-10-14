@@ -1,10 +1,4 @@
-# CHANGELOG
+# Changelog
 
-## v0.2
+[Available here](https://git.pofilo.fr/pofilo/imap-manager/graph) or with an appropriate tool to show graph of commits.
 
-- In progress...
-
-## v0.1
-
-- Initial release.
-- Data may be lost, be careful with it !!
