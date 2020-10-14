@@ -2,7 +2,7 @@
 logger.py: implementation of a simple logger.
 
 imap-manager: Connect and manage your mail account through IMAP.
-Copyright (C) 2018 pofilo <git@pofilo.fr>
+Copyright (C) 2018-2020 pofilo <git@pofilo.fr>
 
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 
@@ -42,21 +42,21 @@ class Logger(metaclass=Singleton):
         self._level_used = INFO
 
     @property
-    def level_used(self): 
+    def level_used(self):
         return self._level_used
 
     @level_used.setter
-    def level_used(self, value): 
+    def level_used(self, value):
         if value not in weights:
             self.log(FATAL, 'Bad level logging used: "{}"'.format(value))
         self._level_used = value
 
     def log(self, level, message):
         message = '{} ({}): {}'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S'), level, message)
-        
+
         if level is FATAL:
             sys.exit(message)
-        
+
         if weights[level] >= weights[self.level_used]:
             print(message)
 

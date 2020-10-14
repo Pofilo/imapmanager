@@ -2,7 +2,7 @@
 utils.py: useful and general methods for imap-manager.
 
 imap-manager: Connect and manage your mail account through IMAP.
-Copyright (C) 2016-2018 pofilo <git@pofilo.fr>
+Copyright (C) 2016-2020 pofilo <git@pofilo.fr>
 
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 
@@ -35,7 +35,7 @@ SECTION_FROM_NAME = 'FROM'
 IMAP_FROM = 'from'
 SECTION_TO_NAME = 'TO'
 IMAP_TO = 'to'
-DEFAULT_CONFIG_PATH = '../config/imap-manager.conf'
+DEFAULT_CONFIG_PATH = '../config/imapmanager.conf'
 ENCODING = 'utf8'
 
 def get_folder(config, rule, param):

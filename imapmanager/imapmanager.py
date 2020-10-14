@@ -2,7 +2,7 @@
 imap_manager.py: imap-manager's main file.
 
 imap-manager: Connect and manage your mail account through IMAP.
-Copyright (C) 2016-2018 pofilo <git@pofilo.fr>
+Copyright (C) 2016-2020 pofilo <git@pofilo.fr>
 
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 
@@ -76,7 +76,7 @@ def main():
     mailbox = config.get(utils.SECTION_GENERAL_NAME, utils.MAILBOX_NAME)
     polling_interval = config.get(utils.SECTION_GENERAL_NAME, utils.POLLING_INTERVAL_NAME)
 
-    my_logger.log(INFO, 'imap-manager initialized with on "{}" with "{}" using "{}"'.format(hostname, username, config_path))
+    my_logger.log(INFO, 'imapmanager initialized with on "{}" with "{}" using "{}"'.format(hostname, username, config_path))
 
     m = imap.connect(hostname, port, username, password)
     m.select(mailbox)
@@ -91,7 +91,7 @@ def main():
             time.sleep(float(polling_interval))
 
     imap.logout(m)
-    my_logger.log(INFO, 'imap-manager closed.')
+    my_logger.log(INFO, 'imapmanager closed.')
 
 if __name__ == '__main__':
     main()

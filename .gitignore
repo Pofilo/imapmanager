@@ -62,6 +62,6 @@ docs/_build/
 # PyBuilder
 target/
 
-*imap-manager.conf
+*imapmanager.conf
 *.code-workspace
 .pylintrc
