@@ -12,12 +12,13 @@ You should have received a copy of the GNU General Public License along with thi
 
 '''
 
-
-import re, quopri, base64, sys
+import configparser, argparse
+import re, quopri, base64, sys, os.path
 import logging
 
 logger = logging.getLogger('imapmanager')
 
+### CONFIGURATION VARIABLES NAMES ###
 SECTION_GENERAL_NAME = 'GENERAL'
 HOSTNAME_NAME = 'IMAP_HOSTNAME'
 PORT_NAME = 'IMAP_PORT'
@@ -27,33 +28,28 @@ MAILBOX_NAME = 'IMAP_MAILBOX'
 POLLING_INTERVAL_NAME = 'POLLING_INTERVAL'
 IMAP_DEFAULT_FOLDER_NAME = 'DEFAULT_FOLDER'
 LOG_LEVEL = 'LOG_LEVEL'
-
 SECTION_SUBJECT_NAME = 'SUBJECT'
-IMAP_SUBJECT = 'subject'
 SECTION_FROM_NAME = 'FROM'
-IMAP_FROM = 'from'
 SECTION_TO_NAME = 'TO'
+
+### IMAP VARIABLES ###
+IMAP_SUBJECT = 'subject'
+IMAP_FROM = 'from'
 IMAP_TO = 'to'
+
+### DEFAULT VARIABLES ###
 DEFAULT_CONFIG_PATH = '../config/imapmanager.conf'
 ENCODING = 'utf8'
 
-def get_folder(config, rule, param):
-    folder = ''
-    # Check if the mail has a rule
-    for argument, value in list(config.items(rule)):
-        # Remove the quotes
-        argument = argument[1:-1]
-        if argument.lower() in param.lower():
-            folder = value
-            break
+### FUNCTIONS ###
 
-    return folder
-
-def get_default_folder(config):
-    # Get the default folder in the config file
-    return config.get(SECTION_GENERAL_NAME, IMAP_DEFAULT_FOLDER_NAME)
-
-def clean_address(address):
+def clean_mail_address(address):
+    """
+    Clean the given mail address.
+    "Name LASTNAME" <name.lastname@example.com>
+    will become: name.lastname@example.com
+    :param      address     the mail address to clean
+    """
     # Remove <> added by some client and only get the content inside
     if '<' in address:
         address = address.split('<')[1]
@@ -89,7 +85,89 @@ def decode_subject(subject):
     return subject
 
 def check_python_version():
+    """
+    Log and exit if the python version is not supported.
+    """
     if sys.version_info <= (3, 7):
         logger.critical('The script needs at least python 3.7')
+        sys.exit(1)
+
+def open_and_load_config():
+    """
+    Function to parse arguments and then open and load the configuration file.
+    :param  args        the arguments given to the program and parsed by argparse
+    """
+
+    # Parse arguments
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--conf', '-c', dest='config_path')
+    args = parser.parse_args()
+
+    # Open and load config file
+    if args.config_path:
+        config_path = args.config_path
+    else:
+        config_path = DEFAULT_CONFIG_PATH
+    config = configparser.ConfigParser()
+
+    if os.path.isfile(config_path):
+        try:
+            config.read(config_path)
+        except configparser.ParsingError as error:
+            logger.critical('Parsing error: {}'.format(str(error)))
+            sys.exit(1)
+    else:
+        logger.critical('Config file "{}" not found."'.format(config_path))
+        sys.exit(1)
+
+    # Check if config is valid
+    check_config(config)
+
+    return config, config_path
+
+def check_config(config):
+    """
+    Function used to check if the configuration is valid (contains all mandatory fields).
+    :param      config      the configuration to check
+    """
+
+    # TODO: better use a map/array of the mandatory section/keys rather than calling each one individually
+
+    # Check all section exist
+    __check_config_section(config, SECTION_GENERAL_NAME)
+    __check_config_section(config, SECTION_SUBJECT_NAME)
+    __check_config_section(config, SECTION_FROM_NAME)
+    __check_config_section(config, SECTION_TO_NAME)
+
+    # Check all mandatories keys
+    __check_config_key(config, SECTION_GENERAL_NAME, HOSTNAME_NAME)
+    __check_config_key(config, SECTION_GENERAL_NAME, PORT_NAME)
+    __check_config_key(config, SECTION_GENERAL_NAME, USERNAME_NAME)
+    __check_config_key(config, SECTION_GENERAL_NAME, PASSWORD_NAME)
+    __check_config_key(config, SECTION_GENERAL_NAME, MAILBOX_NAME)
+    __check_config_key(config, SECTION_GENERAL_NAME, POLLING_INTERVAL_NAME)
+    __check_config_key(config, SECTION_GENERAL_NAME, IMAP_DEFAULT_FOLDER_NAME)
+
+def __check_config_section(config, section):
+    """
+    Check that the given section exists in the configuration.
+    :param      config      the configuration representation
+    :param      section     the section to check
+    Log and exit if the section is not found.
+    """
+    if not config.has_section(section):
+        logger.critical('No section "{}" in config file'.format(section))
+        sys.exit(1)
+
+def __check_config_key(config, section, key):
+    """
+    Check that the given key exists in the given section of the configuration.
+    :param      config      the configuration representation
+    :param      section     the section to check
+    :param      key         the key to check
+    Log and exit if the key (or the section) is not found.
+    """
+    if not config.has_option(section, key):
+        logger.critical('No key "{}" in section "{}" in config file'.format(key, section))
         sys.exit(1)
 

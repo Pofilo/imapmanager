@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 '''
 imapmanager.py: imap-manager's main file.
 
@@ -14,55 +16,42 @@ You should have received a copy of the GNU General Public License along with thi
 
 
 import logging
-import argparse
 import imaplib
 import sys, signal, time
-import configparser
-import os.path
 from time import sleep
 
 import imap
-import utils, confUtils
+import utils
 
+### GLOBAL VARIABLES ###
 running = True
 
+### LOGGING CONF ###
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s - %(filename)s:%(lineno)d - %(levelname)s: %(message)s'
 )
-
 logger = logging.getLogger('imapmanager')
-#logger.setLevel(logging.ERROR)
 
-#formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+### FUNCTIONS ###
 
-def signal_handler(signal, frame):
+def signal_handler(signal_value, frame):
+    """
+    Function to treat signals catched.
+    If a signal is catched, <running> is set to False and the main loop will exit soon.
+    :param  signal_value        the value of the signal catched
+    :param  frame               unused (needed because of the signal API)
+    """
     global running
+    # TODO: strsignal will be available in python 3.8
+    # logger.debug("Signal {} catched, stopping...".format(signal.strsignal(signal_value)))
+    logger.debug("Signal {} catched, stopping...".format(signal_value))
     running = False
-
-def open_and_load_config(args):
-    if args.config_path:
-        config_path = args.config_path
-    else:
-        config_path = utils.DEFAULT_CONFIG_PATH
-    config = configparser.ConfigParser()
-
-    if os.path.isfile(config_path):
-        try:
-            config.read(config_path)
-        except configparser.ParsingError as e:
-            logger.critical('Parsing error: {}'.format(str(e)))
-            sys.exit(1)
-    else:
-        logger.critical('Config file "{}" not found."'.format(config_path))
-        sys.exit(1)
-
-    confUtils.check_config(config)
-
-    return config, config_path
 
 def main():
     logger.info('Starting imapmanager...')
+
+    ### INIT ###
 
     # Check python version
     utils.check_python_version()
@@ -70,15 +59,12 @@ def main():
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 
-    # Parse arguments
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--conf', '-c', dest='config_path')
-    args = parser.parse_args()
+    config, config_path = utils.open_and_load_config()
 
-    # Open conf and load parameters
-    config, config_path = open_and_load_config(args)
-    # TODO my_logger.level_used = config.get(utils.SECTION_GENERAL_NAME, utils.LOG_LEVEL)
-    #logger.setLevel(logging.ERROR)
+    level = logging.getLevelName(config.get(utils.SECTION_GENERAL_NAME, utils.LOG_LEVEL))
+    logger.setLevel(level)
+
+    # Get some parameters for easier convenience
     hostname = config.get(utils.SECTION_GENERAL_NAME, utils.HOSTNAME_NAME)
     port = config.get(utils.SECTION_GENERAL_NAME, utils.PORT_NAME)
     username = config.get(utils.SECTION_GENERAL_NAME, utils.USERNAME_NAME)
@@ -88,19 +74,22 @@ def main():
 
     logger.info('imapmanager initialized with on "{}" with "{}" using "{}"'.format(hostname, username, config_path))
 
-    m = imap.connect(hostname, port, username, password)
-    m.select(mailbox)
+    mail_handler = imap.connect(hostname, port, username, password)
+    mail_handler.select(mailbox)
+
+    ### MAIN LOOP ###
 
     while running:
-        if(not imap.check(m)):
+        if(not imap.check_connection(mail_handler)):
             logger.warn('Check connection failed, trying to reconnect ...')
-            m = imap.connect(hostname, port, username, password)
-        data = imap.process_mails(config, m)
+            mail_handler = imap.connect(hostname, port, username, password)
+        imap.process_mails(config, mail_handler)
         # If signal occurs during process, there is no need to sleep
         if running:
             time.sleep(float(polling_interval))
 
-    imap.logout(m)
+    ### ENDING ###
+    imap.logout(mail_handler)
     logger.info('imapmanager closed.')
 
 if __name__ == '__main__':
