@@ -13,12 +13,13 @@ You should have received a copy of the GNU General Public License along with thi
 '''
 
 import configparser, argparse
-import re, quopri, base64, sys, os.path
+import re, quopri, base64, sys, os
 import logging
 
 logger = logging.getLogger('imapmanager')
 
 ### CONFIGURATION VARIABLES NAMES ###
+CONFIG_PATH = 'CONFIG_PATH'
 SECTION_GENERAL_NAME = 'GENERAL'
 HOSTNAME_NAME = 'IMAP_HOSTNAME'
 PORT_NAME = 'IMAP_PORT'
@@ -38,7 +39,7 @@ IMAP_FROM = 'from'
 IMAP_TO = 'to'
 
 ### DEFAULT VARIABLES ###
-DEFAULT_CONFIG_PATH = '../config/imapmanager.conf'
+DEFAULT_CONFIG_PATH = '/etc/imapmanager.conf'
 ENCODING = 'utf8'
 
 ### FUNCTIONS ###
@@ -95,19 +96,15 @@ def check_python_version():
 def open_and_load_config():
     """
     Function to parse arguments and then open and load the configuration file.
-    :param  args        the arguments given to the program and parsed by argparse
     """
 
-    # Parse arguments
+    # Check no arguments are passed to imapmanager
     parser = argparse.ArgumentParser()
-    parser.add_argument('--conf', '-c', dest='config_path')
+    # Without parsers defined, this line fails if there is an argument
     args = parser.parse_args()
 
     # Open and load config file
-    if args.config_path:
-        config_path = args.config_path
-    else:
-        config_path = DEFAULT_CONFIG_PATH
+    config_path = os.getenv(CONFIG_PATH, DEFAULT_CONFIG_PATH)
     config = configparser.ConfigParser()
 
     if os.path.isfile(config_path):
@@ -117,7 +114,7 @@ def open_and_load_config():
             logger.critical('Parsing error: {}'.format(str(error)))
             sys.exit(1)
     else:
-        logger.critical('Config file "{}" not found."'.format(config_path))
+        logger.critical('Config file "{}" not found.'.format(config_path))
         sys.exit(1)
 
     # Check if config is valid

@@ -17,21 +17,29 @@ The first objective is to **automatically sort your mails** into the desired fol
 
 ## Installation
 
+### Manual with virtual environment
+
 + Download the last stable version [available here](https://git.pofilo.fr/pofilo/imap-manager/releases)
 + `cd imap-manager`
 + Create virtual environment: `python3.7 -m venv .`
 + Source it: `source bin/activate`
 + Install dependencies: `pip install -r requirements.txt`
-+ `cp config/imapmanager.sample.conf config/imapmanager.conf`
-+ Edit *config/imapmanager.conf*
-+ `cd imapmanager`
-+ `python3 imapmanager.py`
++ `cp config/imapmanager.sample.conf /etc/imapmanager.conf`
++ Edit */etc/imapmanager.conf*
++ `imapmanager/imapmanager.py`
+
+You can change the path of the configuration file and set the environment variable `export CONFIG_PATH="config/imapmanager.conf"`
+
+### Using Docker
+
++ Create the configuration file using the [template available here](https://git.pofilo.fr/pofilo/imap-manager/src/branch/master/config/imap-manager.sample.conf) (use the template corresponding to the version of **imap-manager** you will be using).
++ `docker run -ti -v $(pwd)/config/imapmanager.conf:/etc/imapmanager.conf pofilo:imapmanager:<last_tag>`
 
 ### Options
 
-+ `-c`, `--conf`
-    + Specify the path of the configuration file (relative to `imap-manager/imapmanager` or absolute)
-    + Default value is `../config/imapmanager.conf`
++ `CONFIG_PATH` *(optional)*
+    + Specify the path of the configuration file
+    + Default value is `/etc/imapmanager.conf`
 
 ## License
 
