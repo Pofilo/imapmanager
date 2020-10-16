@@ -14,10 +14,9 @@ You should have received a copy of the GNU General Public License along with thi
 
 
 import re, quopri, base64, sys
+import logging
 
-from logger import Logger, FATAL, ERROR, WARN, INFO, DEBUG
-
-my_logger = Logger()
+logger = logging.getLogger('imapmanager')
 
 SECTION_GENERAL_NAME = 'GENERAL'
 HOSTNAME_NAME = 'IMAP_HOSTNAME'
@@ -91,6 +90,6 @@ def decode_subject(subject):
 
 def check_python_version():
     if sys.version_info <= (3, 7):
-        my_logger.log(ERROR, 'The script needs at least python 3.7')
+        logger.critical('The script needs at least python 3.7')
         sys.exit(1)
 

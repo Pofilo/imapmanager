@@ -15,10 +15,11 @@ You should have received a copy of the GNU General Public License along with thi
 
 import configparser
 import sys
-import utils
-from logger import Logger, FATAL, ERROR, WARN, INFO, DEBUG
+import logging
 
-my_logger = Logger()
+import utils
+
+logger = logging.getLogger('imapmanager')
 
 def check_config(config):
     # Check all section exist
@@ -38,11 +39,11 @@ def check_config(config):
 
 def check_config_section(config, section):
     if not config.has_section(section):
-        my_logger.log(ERROR, 'No section "{}" in config file'.format(section))
+        logger.critical('No section "{}" in config file'.format(section))
         sys.exit(1)
 
 def check_config_key(config, section, key):
     if not config.has_option(section, key):
-        my_logger.log(ERROR, 'No key "{}" in section "{}" in config file'.format(key, section))
+        logger.critical('No key "{}" in section "{}" in config file'.format(key, section))
         sys.exit(1)
 

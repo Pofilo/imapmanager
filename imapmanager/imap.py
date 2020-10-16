@@ -17,23 +17,23 @@ import imaplib
 import email
 import mailbox
 import sys
+import logging
 
 import utils
-from logger import Logger, FATAL, ERROR, WARN, INFO, DEBUG
 
-my_logger = Logger()
+logger = logging.getLogger('imapmanager')
 
 def connect(hostname, port, username, password):
     try:
         # Connect to the mail account
         m = imaplib.IMAP4_SSL(hostname, port)
         m.login(username, password)
-        my_logger.log(INFO, 'Successful connection as "{}"'.format(username))
+        logger.info('Successful connection as "{}"'.format(username))
     except imaplib.IMAP4.error as e:
-        my_logger.log(ERROR, 'Login error: {}'.format(str(e)))
+        logger.critical('Login error: {}'.format(str(e)))
         sys.exit(1)
     except BaseException as e:
-        my_logger.log(ERROR, 'Login error: {}'.format(str(e)))
+        logger.critical('Login error: {}'.format(str(e)))
         sys.exit(1)
 
     return m
@@ -93,8 +93,7 @@ def process_mails(config, m):
             if not folder:
                 folder = utils.get_default_folder(config)
 
-            my_logger.log(INFO, 'GET mail "{}" from "{}" to "{}" to be moved to "{}"'.format(
-                subject, mail_from, mail_to, folder))
+            logger.info('GET mail "{}" from "{}" to "{}" to be moved to "{}"'.format(subject, mail_from, mail_to, folder))
 
             # Check if the folder exists
             # TODO
@@ -103,7 +102,7 @@ def process_mails(config, m):
             #    print box
         except BaseException as e:
             folder = utils.get_default_folder(config)
-            my_logger.log(ERROR, 'Error processing an email, moving it into "{}", error: "{}"'.format(folder, str(e)))
+            logger.error('Error processing an email, moving it into "{}", error: "{}"'.format(folder, str(e)))
 
         # We copy the mail into the folder
         m.copy(num, folder)
@@ -117,5 +116,5 @@ def logout(m):
     # Close and logout the connection
     m.close()
     m.logout()
-    my_logger.log(INFO, 'Successful disconnection')
+    logger.info('Successful disconnection')
 
