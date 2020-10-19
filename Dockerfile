@@ -3,7 +3,7 @@ FROM registry.pofilo.fr/python:3.7.9-slim
 
 LABEL maintainer="Pofilo <git@pofilo.fr>"
 
-ENV CONFIG_PATH="/etc/imapmanager.conf"
+ENV IMAPMANAGER_CONFIG_PATH="/etc/imapmanager.conf"
 
 COPY requirements.txt /tmp
 RUN pip install -r /tmp/requirements.txt

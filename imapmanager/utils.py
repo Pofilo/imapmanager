@@ -1,7 +1,7 @@
 '''
-utils.py: useful and general methods for imap-manager.
+utils.py: useful and general methods for imapmanager.
 
-imap-manager: Connect and manage your mail account through IMAP.
+imapmanager: Connect and manage your mail account through IMAP.
 Copyright (C) 2016-2020 pofilo <git@pofilo.fr>
 
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
@@ -19,7 +19,7 @@ import logging
 logger = logging.getLogger('imapmanager')
 
 ### CONFIGURATION VARIABLES NAMES ###
-CONFIG_PATH = 'CONFIG_PATH'
+CONFIG_PATH_NAME = 'IMAPMANAGER_CONFIG_PATH'
 SECTION_GENERAL_NAME = 'GENERAL'
 HOSTNAME_NAME = 'IMAP_HOSTNAME'
 PORT_NAME = 'IMAP_PORT'
@@ -104,7 +104,7 @@ def open_and_load_config():
     args = parser.parse_args()
 
     # Open and load config file
-    config_path = os.getenv(CONFIG_PATH, DEFAULT_CONFIG_PATH)
+    config_path = os.getenv(CONFIG_PATH_NAME, DEFAULT_CONFIG_PATH)
     config = configparser.ConfigParser()
 
     if os.path.isfile(config_path):
@@ -114,7 +114,7 @@ def open_and_load_config():
             logger.critical('Parsing error: {}'.format(str(error)))
             sys.exit(1)
     else:
-        logger.critical('Config file "{}" not found.'.format(config_path))
+        logger.critical('Config file "{}" not found, or set the env variable "{}" accordingly'.format(config_path, CONFIG_PATH_NAME))
         sys.exit(1)
 
     # Check if config is valid
