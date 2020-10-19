@@ -50,7 +50,25 @@ def __get_default_destination_folder(config):
     :return:                the IMAP default folder
     """
     # Get the default folder in the config file
-    return config.get(SECTION_GENERAL_NAME, IMAP_DEFAULT_FOLDER_NAME)
+    return config.get(utils.SECTION_GENERAL_NAME, utils.IMAP_DEFAULT_FOLDER_NAME)
+
+def __check_folder_exist_on_server(mail_handler, folder_name):
+    """
+    This function check that the given folder exists on the server.
+    :param      mail_handler        the handler of the mail server
+    :param      folder_name         the name of the folder to check
+    :return     does_folder_exist   True if the folder exists, False otherwise.
+    """
+    does_folder_exist = True
+    list_folders = mail_handler.list()
+
+    # Each decoded folder on the server looks like: (\HasNoChildren) "." "INBOX.spam"
+    # So we check the existence of "INBOX.spam"
+    folder_formatted = '"{}"'.format(folder_name)
+    if not any(folder_formatted in folder_server.decode(utils.ENCODING) for folder_server in list_folders[1]):
+        does_folder_exist = False
+
+    return does_folder_exist
 
 def connect(hostname, port, username, password):
     """
@@ -109,53 +127,60 @@ def process_mails(config, mail_handler):
     # Check the good usage to parse mails
     for num in data[0].split():
         num = str(int(num)-count)
+        # This try-except seems to only be usefull is the function message_from_bytes fails
         try:
             # See the mail without changing his unread flag
             typ, data = mail_handler.fetch(num, '(BODY.PEEK[])')
             #data[0][1] is the raw email
             raw_email = email.message_from_bytes(data[0][1])
 
-            folder = ''
+            folder_name = ''
             # Check if the mail has a 'subject' rule
             subject = raw_email[utils.IMAP_SUBJECT]
             if subject:
                 subject = utils.decode_subject(subject)
-                folder = __get_folder_from_rule(config, utils.SECTION_SUBJECT_NAME, subject)
+                folder_name = __get_folder_from_rule(config, utils.SECTION_SUBJECT_NAME, subject)
 
-            # Check if the mail has a 'from' rule
+            # Check if the mail has a 'from' rule (only if no rules applied yet)
             mail_from = raw_email[utils.IMAP_FROM]
             if mail_from:
                 mail_from = utils.clean_mail_address(mail_from.lower())
-                if not folder:
-                    folder = __get_folder_from_rule(config, utils.SECTION_FROM_NAME, mail_from)
+                if not folder_name:
+                    folder_name = __get_folder_from_rule(config, utils.SECTION_FROM_NAME, mail_from)
 
-            # Check if the mail has a 'to' rule
+            # Check if the mail has a 'to' rule (only if no rules applied yet)
             mail_to = raw_email[utils.IMAP_TO]
             if mail_to:
                 mail_to = utils.clean_mail_address(mail_to.lower())
-                if not folder:
-                    folder = __get_folder_from_rule(config, utils.SECTION_TO_NAME, mail_to)
+                if not folder_name:
+                    folder_name = __get_folder_from_rule(config, utils.SECTION_TO_NAME, mail_to)
 
             # If we still don't have a rule for the mail, take the default folder
-            if not folder:
-                folder = __get_default_destination_folder(config)
+            if not folder_name:
+                logger.debug('No rule for the mail, moving it into the default folder')
+                folder_name = __get_default_destination_folder(config)
 
-            logger.info('GET mail "{}" from "{}" to "{}" to be moved to "{}"'.format(subject, mail_from, mail_to, folder))
+            logger.info('GET mail "{}" from "{}" to "{}" to be moved into "{}"'.format(subject, mail_from, mail_to, folder_name))
 
-            # Check if the folder exists on the server
-            # TODO
-            # boxes = m.list()
-            # for box in boxes[1]:
-            #    print box
         except BaseException as e:
-            folder = __get_default_folder(config)
-            logger.error('Error processing an email, moving it into "{}", error: "{}"'.format(folder, str(e)))
+            folder_name = __get_default_destination_folder(config)
+            logger.error('Error processing an email, moving it into "{}", error: "{}"'.format(folder_name, str(e)))
+
+        # Check if the folder exists on the server
+        if not __check_folder_exist_on_server(mail_handler, folder_name):
+            logger.warn('The folder "{}" does not exist on the server, moving it into the default folder "{}"'.format(folder_name, __get_default_destination_folder(config)))
+            folder_name = __get_default_destination_folder(config)
+            if not __check_folder_exist_on_server(mail_handler, folder_name):
+                logger.critical('The default folder "{}" does not exist on the server, please fix the configuration, exiting...'.format(folder_name))
+                exit(1)
 
         # We copy the mail into the folder
-        mail_handler.copy(num, folder)
+        mail_handler.copy(num, folder_name)
         # We delete the original mail
         typ, data = mail_handler.store(num, '+FLAGS', '\\Deleted')
         mail_handler.expunge()
+
+        # Update counter
         count += 1
     return
 

@@ -40,7 +40,7 @@ IMAP_TO = 'to'
 
 ### DEFAULT VARIABLES ###
 DEFAULT_CONFIG_PATH = '/etc/imapmanager.conf'
-ENCODING = 'utf8'
+ENCODING = 'utf-8'
 
 ### FUNCTIONS ###
 
