@@ -11,9 +11,9 @@ Connect and manage your emails through IMAP over SSL.
 ## Purpose
 
 The first objective is to **automatically sort your mails** into the desired folder. You can add rules on those fields for now:
-- Subject
-- From
-- To
+- **subject**
+- **from**
+- Dest (including **to** and **cc**)
 
 ## Installation
 

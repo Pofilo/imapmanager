@@ -31,12 +31,13 @@ IMAP_DEFAULT_FOLDER_NAME = 'DEFAULT_FOLDER'
 LOG_LEVEL = 'LOG_LEVEL'
 SECTION_SUBJECT_NAME = 'SUBJECT'
 SECTION_FROM_NAME = 'FROM'
-SECTION_TO_NAME = 'TO'
+SECTION_DEST_NAME = 'DEST'
 
 ### IMAP VARIABLES ###
 IMAP_SUBJECT = 'subject'
 IMAP_FROM = 'from'
 IMAP_TO = 'to'
+IMAP_CC= 'cc'
 
 ### DEFAULT VARIABLES ###
 DEFAULT_CONFIG_PATH = '/etc/imapmanager.conf'
@@ -44,20 +45,27 @@ ENCODING = 'utf-8'
 
 ### FUNCTIONS ###
 
-def clean_mail_address(address):
+def extract_and_sanitize_mail_addresses(addresses):
     """
-    Clean the given mail address.
-    "Name LASTNAME" <name.lastname@example.com>
-    will become: name.lastname@example.com
-    :param      address     the mail address to clean
+    Extract and sanitize all mail addresses in a string.
+    "Name LASTNAME" <Name.Lastname@example.com>, YES.NO@may.be, toto@example.com
+    will become a list containing:
+    name.lastname@example.com, yes.no@may.be, toto@example.com
+    :param      addresses   the mail addresses to clean
     """
-    # Remove <> added by some client and only get the content inside
-    if '<' in address:
-        address = address.split('<')[1]
-        if '>' in address:
-            address = address.split('>')[0]
 
-    return address
+    # If the string is empty, we cannot find any mails
+    if not addresses:
+        return None
+
+    # Regex for a mail address
+    regex = r'([\w0-9._-]+@[\w0-9._-]+\.[\w0-9_-]+)'
+    # Extract all mail address in a list
+    addresses = re.findall(regex, addresses, re.M|re.I)
+    # Lower each mail address
+    addresses = [x.lower() for x in addresses]
+
+    return addresses
 
 # Credits: https://stackoverflow.com/a/43393449
 def decode_subject(subject):
@@ -134,7 +142,7 @@ def check_config(config):
     __check_config_section(config, SECTION_GENERAL_NAME)
     __check_config_section(config, SECTION_SUBJECT_NAME)
     __check_config_section(config, SECTION_FROM_NAME)
-    __check_config_section(config, SECTION_TO_NAME)
+    __check_config_section(config, SECTION_DEST_NAME)
 
     # Check all mandatories keys
     __check_config_key(config, SECTION_GENERAL_NAME, HOSTNAME_NAME)
