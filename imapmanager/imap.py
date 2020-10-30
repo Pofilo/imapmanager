@@ -24,6 +24,7 @@ import utils
 
 logger = logging.getLogger('imapmanager')
 
+
 def __check_rule_for_params(config, rule, rule_name, params):
     """
     Check if one over each params is matching the given rule.
@@ -48,6 +49,7 @@ def __check_rule_for_params(config, rule, rule_name, params):
 
     return folder
 
+
 def __get_default_destination_folder(config):
     """
     This function returns the IMAP default destination folder from configuration.
@@ -57,6 +59,7 @@ def __get_default_destination_folder(config):
     """
     # Get the default folder in the config file
     return config.get(utils.SECTION_GENERAL_NAME, utils.IMAP_DEFAULT_FOLDER_NAME)
+
 
 def __check_folder_exist_on_server(mail_handler, folder_name):
     """
@@ -76,6 +79,7 @@ def __check_folder_exist_on_server(mail_handler, folder_name):
 
     return does_folder_exist
 
+
 def connect(hostname, port, username, password):
     """
     This function create and connect a mail handler.
@@ -90,14 +94,12 @@ def connect(hostname, port, username, password):
         mail_handler = imaplib.IMAP4_SSL(hostname, port)
         mail_handler.login(username, password)
         logger.info('Successful connection as "{}"'.format(username))
-    except imaplib.IMAP4.error as error:
-        logger.critical('Login error: {}'.format(str(error)))
-        sys.exit(1)
-    except BaseException as error:
-        logger.critical('Login error: {}'.format(str(error)))
+    except (imaplib.IMAP4.error, BaseException) as error:
+        logger.critical('Login error: {}'.format(error))
         sys.exit(1)
 
     return mail_handler
+
 
 def check_connection(mail_handler):
     """
@@ -108,10 +110,12 @@ def check_connection(mail_handler):
     connection_ok = True
     try:
         mail_handler.check()
-    except:
+    except (imaplib.IMAP4.error, BaseException) as error:
+        logger.warning('Connection check failed: {}'.format(error))
         connection_ok = False
 
     return connection_ok
+
 
 def process_mails(config, mail_handler):
     """
@@ -137,7 +141,7 @@ def process_mails(config, mail_handler):
         try:
             # See the mail without changing his unread flag
             typ, data = mail_handler.fetch(num, '(BODY.PEEK[])')
-            #data[0][1] is the raw email
+            # data[0][1] is the raw email
             raw_email = email.message_from_bytes(data[0][1])
 
             # The name of the folder where the current mail will be moved
@@ -168,7 +172,7 @@ def process_mails(config, mail_handler):
                 # Init mail_dest with first mail found (init in case a previous rule applied)
                 mail_dest = mail_dest + mail_to
                 if not folder_name:
-                    folder_name = __check_rule_for_params(config, utils.SECTION_DEST_NAME,utils.IMAP_TO, mail_to)
+                    folder_name = __check_rule_for_params(config, utils.SECTION_DEST_NAME, utils.IMAP_TO, mail_to)
 
             # Check if the mail has a 'cc' rule (only if no rules applied yet)
             # The values checked for the 'cc' rules are the ones of the 'to' rules
@@ -195,13 +199,13 @@ def process_mails(config, mail_handler):
 
         except BaseException as exception:
             folder_name = __get_default_destination_folder(config)
-            logger.error('Error processing an email, moving it into "{}", error: "{}"'.format(folder_name, str(exception)))
+            logger.error('Error processing an email, moving it into "{}", error: "{}"'.format(folder_name, exception))
             # In debug, print the all traceback
             logger.debug(traceback.format_exc())
 
         # Check if the folder exists on the server
         if not __check_folder_exist_on_server(mail_handler, folder_name):
-            logger.warn('The folder "{}" does not exist on the server, moving the mail into the default folder "{}"'.format(folder_name, __get_default_destination_folder(config)))
+            logger.warning('The folder "{}" does not exist on the server, moving the mail into the default folder "{}"'.format(folder_name, __get_default_destination_folder(config)))
             folder_name = __get_default_destination_folder(config)
             if not __check_folder_exist_on_server(mail_handler, folder_name):
                 logger.critical('The default folder "{}" does not exist on the server, please fix the configuration, exiting...'.format(folder_name))
@@ -216,6 +220,7 @@ def process_mails(config, mail_handler):
         # Update counter
         count += 1
     return
+
 
 def logout(mail_handler):
     """

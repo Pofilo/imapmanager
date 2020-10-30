@@ -37,13 +37,14 @@ SECTION_DEST_NAME = 'DEST'
 IMAP_SUBJECT = 'subject'
 IMAP_FROM = 'from'
 IMAP_TO = 'to'
-IMAP_CC= 'cc'
+IMAP_CC = 'cc'
 
 ### DEFAULT VARIABLES ###
 DEFAULT_CONFIG_PATH = '/etc/imapmanager.conf'
 ENCODING = 'utf-8'
 
 ### FUNCTIONS ###
+
 
 def extract_and_sanitize_mail_addresses(addresses):
     """
@@ -61,11 +62,12 @@ def extract_and_sanitize_mail_addresses(addresses):
     # Regex for a mail address
     regex = r'([\w0-9._-]+@[\w0-9._-]+\.[\w0-9_-]+)'
     # Extract all mail address in a list
-    addresses = re.findall(regex, addresses, re.M|re.I)
+    addresses = re.findall(regex, addresses, re.M | re.I)
     # Lower each mail address
     addresses = [x.lower() for x in addresses]
 
     return addresses
+
 
 # Credits: https://stackoverflow.com/a/43393449
 def decode_subject(subject):
@@ -74,24 +76,25 @@ def decode_subject(subject):
     line = []
     if data:
         for g in data:
-            (raw,extra1,encoding,method,string,extra) = g
-            extra1 = extra1.replace('\r','').replace('\n','').strip()
+            (raw, extra1, encoding, method, string, extra) = g
+            extra1 = extra1.replace('\r', '').replace('\n', '').strip()
             if len(extra1) > 0:
                 line.append(extra1)
             if method.lower() == 'q':
                 string = quopri.decodestring(string)
-                string = string.decode(encoding,errors='ignore')
-                string = string.replace("_"," ").strip()
+                string = string.decode(encoding, errors='ignore')
+                string = string.replace("_", " ").strip()
             if method.lower() == 'b':
                 string = base64.b64decode(string)
-                string = string.decode(encoding,errors='ignore')
+                string = string.decode(encoding, errors='ignore')
             line.append(string)
-            extra = extra.replace('\r','').replace('\n','').strip()
+            extra = extra.replace('\r', '').replace('\n', '').strip()
             if len(extra) > 0:
                 line.append(extra)
         subject = "".join(line)
 
     return subject
+
 
 def check_python_version():
     """
@@ -100,6 +103,7 @@ def check_python_version():
     if sys.version_info <= (3, 7):
         logger.critical('The script needs at least python 3.7')
         sys.exit(1)
+
 
 def open_and_load_config():
     """
@@ -119,7 +123,7 @@ def open_and_load_config():
         try:
             config.read(config_path)
         except configparser.ParsingError as error:
-            logger.critical('Parsing error: {}'.format(str(error)))
+            logger.critical('Parsing error: {}'.format(error))
             sys.exit(1)
     else:
         logger.critical('Config file "{}" not found, or set the env variable "{}" accordingly'.format(config_path, CONFIG_PATH_NAME))
@@ -129,6 +133,7 @@ def open_and_load_config():
     check_config(config)
 
     return config, config_path
+
 
 def check_config(config):
     """
@@ -153,6 +158,7 @@ def check_config(config):
     __check_config_key(config, SECTION_GENERAL_NAME, POLLING_INTERVAL_NAME)
     __check_config_key(config, SECTION_GENERAL_NAME, IMAP_DEFAULT_FOLDER_NAME)
 
+
 def __check_config_section(config, section):
     """
     Check that the given section exists in the configuration.
@@ -163,6 +169,7 @@ def __check_config_section(config, section):
     if not config.has_section(section):
         logger.critical('No section "{}" in config file'.format(section))
         sys.exit(1)
+
 
 def __check_config_key(config, section, key):
     """

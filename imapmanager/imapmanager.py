@@ -35,6 +35,7 @@ logger = logging.getLogger('imapmanager')
 
 ### FUNCTIONS ###
 
+
 def signal_handler(signal_value, frame):
     """
     Function to treat signals catched.
@@ -47,6 +48,7 @@ def signal_handler(signal_value, frame):
     # logger.debug("Signal {} catched, stopping...".format(signal.strsignal(signal_value)))
     logger.debug("Signal {} catched, stopping...".format(signal_value))
     running = False
+
 
 def main():
     logger.info('Starting imapmanager...')
@@ -81,7 +83,7 @@ def main():
 
     while running:
         if(not imap.check_connection(mail_handler)):
-            logger.warn('Check connection failed, trying to reconnect ...')
+            logger.warning('Check connection failed, trying to reconnect ...')
             mail_handler = imap.connect(hostname, port, username, password)
         imap.process_mails(config, mail_handler)
         # If signal occurs during process, there is no need to sleep
@@ -91,6 +93,7 @@ def main():
     ### ENDING ###
     imap.logout(mail_handler)
     logger.info('imapmanager closed.')
+
 
 if __name__ == '__main__':
     main()
