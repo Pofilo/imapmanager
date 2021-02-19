@@ -71,10 +71,7 @@ def __check_folder_exist_on_server(mail_handler, folder_name):
     does_folder_exist = True
     list_folders = mail_handler.list()
 
-    # Each decoded folder on the server looks like: (\HasNoChildren) "." "INBOX.spam"
-    # So we check the existence of "INBOX.spam"
-    folder_formatted = '"{}"'.format(folder_name)
-    if not any(folder_formatted in folder_server.decode(utils.ENCODING) for folder_server in list_folders[1]):
+    if not any(folder_name in folder_server.decode(utils.ENCODING) for folder_server in list_folders[1]):
         does_folder_exist = False
 
     return does_folder_exist
@@ -202,7 +199,7 @@ def process_mails(config, mail_handler):
                 if mail_cc:
                     mail_dest = mail_dest + mail_cc
                     if not folder_name:
-                        folder_name = __check_rule_for_params(config, utils.SECTION_DEST_NAME, utils.IMAPC_CC, mail_cc)
+                        folder_name = __check_rule_for_params(config, utils.SECTION_DEST_NAME, utils.IMAP_CC, mail_cc)
 
             # If we still don't have a rule for the mail, take the default folder
             if not folder_name:
@@ -221,15 +218,19 @@ def process_mails(config, mail_handler):
             logger.debug(traceback.format_exc())
 
         # Check if the folder exists on the server
-        if not __check_folder_exist_on_server(mail_handler, folder_name):
+        # Folder on the server looks like: (\HasNoChildren) "." "INBOX.spam"
+        # So we add some quotes around the name of the folder
+        folder_formatted = '"{}"'.format(folder_name)
+        if not __check_folder_exist_on_server(mail_handler, folder_formatted):
             logger.warning('The folder "{}" does not exist on the server, moving the mail into the default folder "{}"'.format(folder_name, __get_default_destination_folder(config)))
             folder_name = __get_default_destination_folder(config)
-            if not __check_folder_exist_on_server(mail_handler, folder_name):
+            folder_formatted = folder_name
+            if not __check_folder_exist_on_server(mail_handler, folder_formatted):
                 logger.critical('The default folder "{}" does not exist on the server, please fix the configuration, exiting...'.format(folder_name))
                 exit(1)
 
         # We copy the mail into the folder
-        mail_handler.copy(num, folder_name)
+        mail_handler.copy(num, folder_formatted)
         # We delete the original mail
         typ, data = mail_handler.store(num, '+FLAGS', '\\Deleted')
         mail_handler.expunge()
