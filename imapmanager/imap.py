@@ -80,13 +80,14 @@ def __check_folder_exist_on_server(mail_handler, folder_name):
     return does_folder_exist
 
 
-def connect(hostname, port, username, password):
+def connect(hostname, port, username, password, mailbox):
     """
     This function create and connect a mail handler.
     :param      hostname    the hostname of the mail server
     :param      port        the port of the mail server
     :param      username    the name of the user
     :param      password    the password of the user
+    :param      mailbox     the name of the folder where imapmanager will process unread mails
     :return                 the mail handler
     """
     try:
@@ -95,8 +96,11 @@ def connect(hostname, port, username, password):
         mail_handler.login(username, password)
         logger.info('Successful connection as "{}"'.format(username))
     except (imaplib.IMAP4.error, BaseException) as error:
-        logger.critical('Login error: {}'.format(error))
+        logger.critical('Login error: "{}"'.format(error))
+        logger.debug(traceback.format_exc())
         sys.exit(1)
+
+    mail_handler.select(mailbox)
 
     return mail_handler
 
@@ -111,7 +115,8 @@ def check_connection(mail_handler):
     try:
         mail_handler.check()
     except (imaplib.IMAP4.error, BaseException) as error:
-        logger.warning('Connection check failed: {}'.format(error))
+        logger.warning('Connection check failed: "{}"'.format(error))
+        logger.debug(traceback.format_exc())
         connection_ok = False
 
     return connection_ok
@@ -124,13 +129,26 @@ def process_mails(config, mail_handler):
     :param      mail_handler    the handler of the mail
     """
     mailbox = config.get(utils.SECTION_GENERAL_NAME, utils.MAILBOX_NAME)
-    # Go into the mailbox
-    mail_handler.select(mailbox)
 
-    # Get the unseen mails of this directory
-    typ, data = mail_handler.search(None, 'UNSEEN')
+    try:
+        # Go into the mailbox
+        mail_handler.select(mailbox)
+    except (imaplib.IMAP4.error, BaseException) as error:
+        logger.error('select failed: "{}"'.format(error))
+        logger.debug(traceback.format_exc())
+        return
+
+    try:
+        # Get the unseen mails of this directory
+        typ, data = mail_handler.search(None, 'UNSEEN')
+    except (imaplib.IMAP4.error, BaseException) as error:
+        logger.error('search failed: "{}"'.format(error))
+        logger.debug(traceback.format_exc())
+        return
+
     # Counter of the number of mails proccessed
     count = 0
+
     # Parse the mails
     # TODO
     # This for loop is called individually even if there is multiple mails
@@ -200,7 +218,6 @@ def process_mails(config, mail_handler):
         except BaseException as exception:
             folder_name = __get_default_destination_folder(config)
             logger.error('Error processing an email, moving it into "{}", error: "{}"'.format(folder_name, exception))
-            # In debug, print the all traceback
             logger.debug(traceback.format_exc())
 
         # Check if the folder exists on the server
@@ -228,7 +245,11 @@ def logout(mail_handler):
     :param      mail_handler        the handler to logout and close
     """
     # Close and logout the connection
-    mail_handler.close()
-    mail_handler.logout()
-    logger.info('Successful disconnection')
+    try:
+        mail_handler.close()
+        mail_handler.logout()
+        logger.info('Successful disconnection')
+    except (imaplib.IMAP4.error, BaseException) as error:
+        logger.warning('Logout failed: "{}"'.format(error))
+        logger.debug(traceback.format_exc())
 

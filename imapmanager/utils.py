@@ -123,7 +123,7 @@ def open_and_load_config():
         try:
             config.read(config_path)
         except configparser.ParsingError as error:
-            logger.critical('Parsing error: {}'.format(error))
+            logger.critical('Parsing error: "{}"'.format(error))
             sys.exit(1)
     else:
         logger.critical('Config file "{}" not found, or set the env variable "{}" accordingly'.format(config_path, CONFIG_PATH_NAME))

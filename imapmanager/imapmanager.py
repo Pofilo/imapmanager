@@ -76,15 +76,13 @@ def main():
 
     logger.info('imapmanager initialized with on "{}" with "{}" using "{}"'.format(hostname, username, config_path))
 
-    mail_handler = imap.connect(hostname, port, username, password)
-    mail_handler.select(mailbox)
+    mail_handler = imap.connect(hostname, port, username, password, mailbox)
 
     ### MAIN LOOP ###
-
     while running:
         if(not imap.check_connection(mail_handler)):
             logger.warning('Check connection failed, trying to reconnect ...')
-            mail_handler = imap.connect(hostname, port, username, password)
+            mail_handler = imap.connect(hostname, port, username, password, mailbox)
         imap.process_mails(config, mail_handler)
         # If signal occurs during process, there is no need to sleep
         if running:
