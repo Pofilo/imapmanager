@@ -26,8 +26,10 @@ var/
 *.egg-info/
 .installed.cfg
 *.egg
-pyvenv.cfg
 bin/
+share/
+lib64*
+pyvenv.cfg
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -64,4 +66,5 @@ target/
 
 *imapmanager.conf
 *.code-workspace
+.vscode/
 .pylintrc
