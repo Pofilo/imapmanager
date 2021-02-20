@@ -227,7 +227,7 @@ def process_mails(config, mail_handler):
             folder_formatted = folder_name
             if not __check_folder_exist_on_server(mail_handler, folder_formatted):
                 logger.critical('The default folder "{}" does not exist on the server, please fix the configuration, exiting...'.format(folder_name))
-                exit(1)
+                sys.exit(1)
 
         # We copy the mail into the folder
         mail_handler.copy(num, folder_formatted)
