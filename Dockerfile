@@ -6,7 +6,8 @@ LABEL maintainer="Pofilo <git@pofilo.fr>"
 ENV IMAPMANAGER_CONFIG_PATH="/etc/imapmanager.conf"
 
 COPY requirements.txt /tmp
-RUN pip install -r /tmp/requirements.txt
+RUN pip install -r /tmp/requirements.txt \
+    && rm /tmp/requirements.txt
 
 WORKDIR /usr/bin/local
 COPY imapmanager/*\.py imapmanager/
