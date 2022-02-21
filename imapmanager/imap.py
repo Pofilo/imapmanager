@@ -18,6 +18,7 @@ import email
 import mailbox
 import sys
 import logging
+import telegram
 import traceback
 
 import utils
@@ -118,6 +119,13 @@ def check_connection(mail_handler):
 
     return connection_ok
 
+def send_telegram_notification(config, subject, mail_from, folder):
+    if config.has_section(utils.SECTION_TELEGRAM_NAME):
+        logger.debug('Sending Telegram message')
+        token = config.get(utils.SECTION_TELEGRAM_NAME, utils.TELEGRAM_TOKEN_NAME)
+        chat_id = config.get(utils.SECTION_TELEGRAM_NAME, utils.TELEGRAM_CHATID_NAME)
+        bot = telegram.Bot(token)
+        bot.send_message(chat_id, f'New mail: "{subject}" from "{mail_from}" in folder {folder}')
 
 def process_mails(config, mail_handler):
     """
@@ -237,6 +245,7 @@ def process_mails(config, mail_handler):
 
         # Update counter
         count += 1
+        send_telegram_notification(config, subject, mail_from, folder_formatted)
     return
 
 
