@@ -27,7 +27,7 @@ printLine
 echo "---> Do you want to build the ${VERSION} image of ${NAME}? [y/n]"
 read -r answer
 if [[ "${answer}" == "y" ]]; then
-    docker build -t registry.pofilo.fr/"${NAME}":"${VERSION}" -t pofilo/"${NAME}":"${VERSION}" . --no-cache
+    docker build -t registry.pofilo.fr/"${NAME}":"${VERSION}" . --no-cache
     ret=$?
     if [ "${ret}" -ne 0 ]; then
         echo "Something went wrong .."
@@ -42,7 +42,6 @@ echo "---> Do you want to push the ${VERSION} image of ${NAME}? [y/n]"
 read -r answer
 if [[ "${answer}" == "y" ]]; then
     docker push registry.pofilo.fr/"${NAME}":"${VERSION}"
-    docker push pofilo/"${NAME}":"${VERSION}"
 fi
 
 scriptDone
