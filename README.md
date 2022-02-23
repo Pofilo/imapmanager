@@ -17,7 +17,7 @@ The first objective is to **automatically sort your mails** into the desired fol
 
 ## Installation
 
-### Manual with virtual environment
+### Manual with a virtual environment
 
 + Download the last stable version [available here](https://git.pofilo.fr/pofilo/imapmanager/releases)
 + `cd imapmanager`
@@ -47,5 +47,5 @@ This project is licensed under the GNU GPL License. See the [LICENSE](https://gi
 
 ## Bugs
 
-If you experience an issue, you have other ideas to the developpement or anything else, feel free to [report it](https://git.pofilo.fr/pofilo/imapmanager/issues) or [fix it with a PR](https://git.pofilo.fr/pofilo/imapmanager/pulls)!
+If you experience an issue, you have other ideas for the development, or anything else, feel free to [report it](https://git.pofilo.fr/pofilo/imapmanager/issues) or [fix it with a PR](https://git.pofilo.fr/pofilo/imapmanager/pulls)!
 
