@@ -1,5 +1,5 @@
 # Same official python image but without restrictions of official docker registry
-FROM registry.pofilo.fr/python:3.9.13-slim-bullseye
+FROM registry.pofilo.fr/python:3.10.12-alpine3.18
 
 LABEL maintainer="Pofilo <git@pofilo.fr>"
 
@@ -13,4 +13,3 @@ WORKDIR /usr/bin/local
 COPY imapmanager/*\.py imapmanager/
 
 ENTRYPOINT ["imapmanager/imapmanager.py"]
-

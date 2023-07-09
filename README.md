@@ -5,7 +5,7 @@ Connect and manage your emails through IMAP over SSL.
 
 ## Requirements
 
-+ The script uses **python 3.9**
++ The script uses **python 3.10**
 + Dependencies listed in `requirements.txt`
 
 ## Purpose
@@ -21,8 +21,8 @@ The first objective is to **automatically sort your mails** into the desired fol
 
 + Download the last stable version [available here](https://git.pofilo.fr/pofilo/imapmanager/releases)
 + `cd imapmanager`
-+ Create virtual environment: `python3.9 -m venv .`
-+ Source it: `source bin/activate`
++ Create virtual environment: `python3.10 -m venv venv`
++ Source it: `source venv/bin/activate`
 + Install dependencies: `pip install -r requirements.txt`
 + `cp config/imapmanager.sample.conf /etc/imapmanager.conf`
 + Edit */etc/imapmanager.conf*
