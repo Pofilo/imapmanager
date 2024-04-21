@@ -17,15 +17,14 @@ with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
 
-import imaplib
+from imaplib import IMAP4_SSL
 import email
 import sys
-import logging
-import traceback
+from logging import Logger, getLogger  # TODO: remove getLogger
 
-from imapmanager import utils
+from utils import *  # TODO
 
-logger = logging.getLogger("imapmanager")
+logger = getLogger("imapmanager")
 
 
 # TODO: this function is not understandable
@@ -68,227 +67,230 @@ def _get_default_destination_folder(config):
     :return:                the IMAP default folder
     """
     # Get the default folder in the config file
-    return config.get(utils.SECTION_GENERAL_NAME, utils.IMAP_DEFAULT_FOLDER_NAME)
+    return config.get(SECTION_GENERAL_NAME, IMAP_DEFAULT_FOLDER_NAME)
 
 
-def _check_folder_exist_on_server(mail_handler, folder_name):
-    """
-    This function check that the given folder exists on the server.
-    Folder on the server looks like:
-        (\HasNoChildren) "." "INBOX.spam"  # noqa: W605
-        (\HasNoChildren) "." INBOX.spam  # noqa: W605
-    :param      mail_handler        the handler of the mail server
-    :param      folder_name         the name of the folder to check
-    :return     does_folder_exist   True if the folder exists, False otherwise.
-    """
-    does_folder_exist = True
-    list_folders = mail_handler.list()
+class Imap:
+    def __init__(
+        self,
+        logger: Logger,
+        hostname: str,
+        port: str,
+        username: str,
+        password: str,
+        mailbox: str,
+        config,  # : TODO typings once config is an object or something clean
+    ) -> None:
+        """
+        :param      hostname    the hostname of the mail server
+        :param      port        the port of the mail server
+        :param      username    the name of the user
+        :param      password    the password of the user
+        :param      mailbox     the name of the folder where imapmanager will process
+                                unread mails
+        """
+        self.logger = logger
+        self._hostname = hostname
+        self._port = port
+        self._username = username
+        self._password = password
+        self._mailbox = mailbox
+        self._handler: IMAP4_SSL = None
+        self._config = config
 
-    if not any(
-        folder_name in folder_server.decode(utils.ENCODING).replace('"', "")
-        for folder_server in list_folders[1]
-    ):
-        does_folder_exist = False
+        self._connect()
 
-    return does_folder_exist
-
-
-def connect(hostname, port, username, password, mailbox):
-    """
-    This function create and connect a mail handler.
-    :param      hostname    the hostname of the mail server
-    :param      port        the port of the mail server
-    :param      username    the name of the user
-    :param      password    the password of the user
-    :param      mailbox     the name of the folder where imapmanager will process
-                            unread mails
-    :return                 the mail handler
-    """
-    try:
-        # Connect to the mail account
-        mail_handler = imaplib.IMAP4_SSL(hostname, port)
-        mail_handler.login(username, password)
-        logger.info("Successful connection as username=%s", username)
-    except (imaplib.IMAP4.error, BaseException) as exc:
-        logger.exception("Failed to login: err=%s", exc)
-        sys.exit(1)
-
-    mail_handler.select(mailbox)
-
-    return mail_handler
-
-
-def check_connection(mail_handler):
-    """
-    This function checks that the mail handler is still successfully connected.
-    :param      mail_handler    the handler to check
-    :return                     True if connection OK, False otherwise
-    """
-    connection_ok = True
-    try:
-        mail_handler.check()
-    except (imaplib.IMAP4.error, BaseException) as exc:
-        logger.exception("Failed to check connection: err=%s", exc)
-        connection_ok = False
-
-    return connection_ok
-
-
-def process_mails(config, mail_handler):
-    """
-    Process all mails mark as UNREAD in the mailbox.
-    :param      config          the configuration
-    :param      mail_handler    the handler of the mail
-    """
-    mailbox = config.get(utils.SECTION_GENERAL_NAME, utils.MAILBOX_NAME)
-
-    try:
-        # Go into the mailbox
-        mail_handler.select(mailbox)
-    except (imaplib.IMAP4.error, BaseException) as exc:
-        logger.exception("Failed to select: err=%s", exc)
-        return
-
-    try:
-        # Get the unseen mails of this directory
-        typ, data = mail_handler.search(None, "UNSEEN")
-    except (imaplib.IMAP4.error, BaseException) as exc:
-        logger.exception("Failed to search: err=%s", exc)
-        return
-
-    # Counter of the number of mails proccessed
-    count = 0
-
-    # Parse the mails
-    # TODO
-    # This for loop is called individually even if there is multiple mails
-    # Check the good usage to parse mails
-    for num in data[0].split():
-        num = str(int(num) - count)
-        # The name of the folder where the current mail will be moved
-        folder_name = ""
-
-        # This try-except seems to only be usefull if the message_from_bytes() fails
+    def _connect(self) -> None:
         try:
-            # See the mail without changing his unread flag
-            typ, data = mail_handler.fetch(num, "(BODY.PEEK[])")
-            # data[0][1] is the raw email
-            raw_email = email.message_from_bytes(data[0][1])
+            # Connect to the mail account
+            self._handler = IMAP4_SSL(self._hostname, self._port)
+            self._handler.login(self._username, self._password)
+            self.logger.info("Successful connection as username=%s", self._username)
+        except Exception as exc:
+            self.logger.exception("Failed to login: err=%s", exc)
+            sys.exit(1)
 
-            mail_dest = []
-            # Check if the mail has a 'subject' rule
-            subject = raw_email[utils.IMAP_SUBJECT]
-            if subject:
-                subject = utils.decode_subject(subject)
-                folder_name = _check_rule_for_params(
-                    config, utils.SECTION_SUBJECT_NAME, utils.IMAP_SUBJECT, [subject]
-                )
+        self._handler.select(self._mailbox)
 
-            # Check if the mail has a 'from' rule (only if no rules applied yet)
-            mail_from = raw_email[utils.IMAP_FROM]
-            logger.debug("field from=%s", mail_from)
-            mail_from = utils.extract_and_sanitize_mail_addresses(mail_from)
-            if mail_from:
-                # We don't want to deal with multiple senders
-                mail_from = mail_from[0]
-                if not folder_name:
+    def maybe_reconnect(self) -> None:
+        """
+        If handler is not connected yet or disconnected, reconnect it.
+        """
+        try:
+            if not self._handler.check():
+                self.logger.warning("Check connection failed, trying to reconnect ...")
+                self._connect()
+        except Exception as exc:
+            self.logger.exception("Failed to check connection: err=%s", exc)
+
+    def _check_folder_exist_on_server(self, folder_name) -> bool:
+        """
+        This function check that the given folder exists on the server.
+        Folder on the server looks like:
+            (\HasNoChildren) "." "INBOX.spam"  # noqa: W1401
+            (\HasNoChildren) "." INBOX.spam  # noqa: W605
+        :param      folder_name         the name of the folder to check
+        :return                         True if the folder exists, False otherwise.
+        """
+        list_folders = self._handler.list()
+
+        return any(
+            folder_name in folder_server.decode(ENCODING).replace('"', "")
+            for folder_server in list_folders[1]
+        )
+
+    def process_mails(self) -> None:
+        """
+        Process all mails mark as UNREAD in the mailbox.
+        """
+        mailbox = self._config.get(SECTION_GENERAL_NAME, MAILBOX_NAME)
+
+        try:
+            # Go into the mailbox
+            self._handler.select(mailbox)
+        except Exception as exc:
+            self.logger.exception("Failed to select: err=%s", exc)
+            return
+
+        try:
+            # Get the unseen mails of this directory
+            _typ, data = self._handler.search(None, "UNSEEN")
+        except Exception as exc:
+            self.logger.exception("Failed to search: err=%s", exc)
+            return
+
+        # Counter of the number of mails proccessed
+        count = 0
+
+        # Parse the mails
+        # TODO
+        # This for loop is called individually even if there is multiple mails
+        # Check the good usage to parse mails
+        for num in data[0].split():
+            num = str(int(num) - count)
+            # The name of the folder where the current mail will be moved
+            folder_name = ""
+
+            # This try-except seems to only be usefull if the message_from_bytes() fails
+            try:
+                # See the mail without changing his unread flag
+                _typ, data = self._handler.fetch(num, "(BODY.PEEK[])")
+                # data[0][1] is the raw email
+                raw_email = email.message_from_bytes(data[0][1])
+
+                mail_dest = []
+                # Check if the mail has a 'subject' rule
+                subject = raw_email[IMAP_SUBJECT]
+                if subject:
+                    subject = decode_subject(subject)
                     folder_name = _check_rule_for_params(
-                        config, utils.SECTION_FROM_NAME, utils.IMAP_FROM, [mail_from]
+                        self._config, SECTION_SUBJECT_NAME, IMAP_SUBJECT, [subject]
                     )
 
-            # Check if the mail has a 'to' rule (only if no rules applied yet)
-            mail_to = raw_email[utils.IMAP_TO]
-            logger.debug("field to=%s", mail_to)
-            mail_to = utils.extract_and_sanitize_mail_addresses(mail_to)
-            # Init mail_dest with first mail found
-            # (init in case a previous rule applied)
-            if mail_to:
-                # Init mail_dest with first mail found
-                # (init in case a previous rule applied)
-                mail_dest = mail_dest + mail_to
-                if not folder_name:
-                    folder_name = _check_rule_for_params(
-                        config, utils.SECTION_DEST_NAME, utils.IMAP_TO, mail_to
-                    )
-
-            # Check if the mail has a 'cc' rule (only if no rules applied yet)
-            # The values checked for the 'cc' rules are the ones of the 'to' rules
-            mail_cc = raw_email[utils.IMAP_CC]
-            logger.debug("field cc=%s", mail_cc)
-            if mail_cc:
-                mail_cc = utils.extract_and_sanitize_mail_addresses(mail_cc)
-                # The list can be empty after <extract_and_sanitize_mail_addresses>
-                if mail_cc:
-                    mail_dest = mail_dest + mail_cc
+                # Check if the mail has a 'from' rule (only if no rules applied yet)
+                mail_from = raw_email[IMAP_FROM]
+                self.logger.debug("field from=%s", mail_from)
+                mail_from = extract_and_sanitize_mail_addresses(mail_from)
+                if mail_from:
+                    # We don't want to deal with multiple senders
+                    mail_from = mail_from[0]
                     if not folder_name:
                         folder_name = _check_rule_for_params(
-                            config, utils.SECTION_DEST_NAME, utils.IMAP_CC, mail_cc
+                            self._config, SECTION_FROM_NAME, IMAP_FROM, [mail_from]
                         )
 
-            # If we still don't have a rule for the mail, take the default folder
-            if not folder_name:
-                logger.debug("No rule for the mail, moving it into the default folder")
-                folder_name = _get_default_destination_folder(config)
+                # Check if the mail has a 'to' rule (only if no rules applied yet)
+                mail_to = raw_email[IMAP_TO]
+                self.logger.debug("field to=%s", mail_to)
+                mail_to = extract_and_sanitize_mail_addresses(mail_to)
+                # Init mail_dest with first mail found
+                # (init in case a previous rule applied)
+                if mail_to:
+                    # Init mail_dest with first mail found
+                    # (init in case a previous rule applied)
+                    mail_dest = mail_dest + mail_to
+                    if not folder_name:
+                        folder_name = _check_rule_for_params(
+                            self._config, SECTION_DEST_NAME, IMAP_TO, mail_to
+                        )
 
-            logger.info(
-                "GET mail subject=%s from=%s dest=%s to be moved into folder=%s",
-                subject,
-                mail_from,
-                mail_dest,
-                folder_name,
-            )
-        except BaseException as exc:
-            folder_name = _get_default_destination_folder(config)
-            logger.exception(
-                "Error processing an email, moving it into folder=%s err=%s",
-                folder_name,
-                exc,
-            )
+                # Check if the mail has a 'cc' rule (only if no rules applied yet)
+                # The values checked for the 'cc' rules are the ones of the 'to' rules
+                mail_cc = raw_email[IMAP_CC]
+                self.logger.debug("field cc=%s", mail_cc)
+                if mail_cc:
+                    mail_cc = extract_and_sanitize_mail_addresses(mail_cc)
+                    # The list can be empty after <extract_and_sanitize_mail_addresses>
+                    if mail_cc:
+                        mail_dest = mail_dest + mail_cc
+                        if not folder_name:
+                            folder_name = _check_rule_for_params(
+                                self._config, SECTION_DEST_NAME, IMAP_CC, mail_cc
+                            )
 
-        # Check if the folder exists on the server
-        if not _check_folder_exist_on_server(mail_handler, folder_name):
-            logger.warning(
-                "folder=%s does not exist on the server, moving the mail "
-                "into the default folder=%s",
-                folder_name,
-                _get_default_destination_folder(config),
-            )
-            folder_name = _get_default_destination_folder(config)
-            if not _check_folder_exist_on_server(mail_handler, folder_name):
-                logger.critical(
-                    "default folder=%s does not exist on the server, "
-                    "please fix the configuration, exiting..",
+                # If we still don't have a rule for the mail, take the default folder
+                if not folder_name:
+                    self.logger.debug(
+                        "No rule for the mail, moving it into the default folder"
+                    )
+                    folder_name = _get_default_destination_folder(self._config)
+
+                self.logger.info(
+                    "GET mail subject=%s from=%s dest=%s to be moved into folder=%s",
+                    subject,
+                    mail_from,
+                    mail_dest,
+                    folder_name,
+                )
+            except Exception as exc:
+                folder_name = _get_default_destination_folder(self._config)
+                self.logger.exception(
+                    "Error processing an email, moving it into folder=%s err=%s",
+                    folder_name,
+                    exc,
+                )
+
+            # Check if the folder exists on the server
+            if not self._check_folder_exist_on_server(folder_name):
+                self.logger.warning(
+                    "folder=%s does not exist on the server, moving the mail "
+                    "into the default folder=%s",
+                    folder_name,
+                    _get_default_destination_folder(self._config),
+                )
+                folder_name = _get_default_destination_folder(self._config)
+                if not self._check_folder_exist_on_server(folder_name):
+                    self.logger.critical(
+                        "default folder=%s does not exist on the server, "
+                        "please fix the configuration, exiting..",
+                        folder_name,
+                    )
+                    sys.exit(1)
+
+            # We copy the mail into the folder
+            result = self._handler.copy(num, folder_name)
+            if result[0] != "OK":
+                self.logger.critical(
+                    "Mail with subject=%s not copied to folder=%s, exiting...",
+                    subject,
                     folder_name,
                 )
                 sys.exit(1)
+            # We delete the original mail
+            _typ, data = self._handler.store(num, "+FLAGS", "\\Deleted")
+            self._handler.expunge()
 
-        # We copy the mail into the folder
-        result = mail_handler.copy(num, folder_name)
-        if result[0] != "OK":
-            logger.critical(
-                "Mail with subject=%s not copied to folder=%s, exiting...",
-                subject,
-                folder_name,
-            )
-            sys.exit(1)
-        # We delete the original mail
-        typ, data = mail_handler.store(num, "+FLAGS", "\\Deleted")
-        mail_handler.expunge()
+            # Update counter
+            count += 1
 
-        # Update counter
-        count += 1
-    return
-
-
-def logout(mail_handler):
-    """
-    Logout and close the mail handler.
-    :param      mail_handler        the handler to logout and close
-    """
-    # Close and logout the connection
-    try:
-        mail_handler.close()
-        mail_handler.logout()
-        logger.info("Successful disconnection")
-    except (imaplib.IMAP4.error, BaseException) as exc:
-        logger.exception("Failed to close/logout: err=%s", exc)
+    def logout(self) -> None:
+        """
+        Logout and close the mail handler.
+        """
+        # Close and logout the connection
+        try:
+            self._handler.close()
+            self._handler.logout()
+            self.logger.info("Successful disconnection")
+        except Exception as exc:
+            self.logger.exception("Failed to close/logout: err=%s", exc)

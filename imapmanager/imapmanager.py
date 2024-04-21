@@ -24,8 +24,8 @@ import logging
 from signal import signal, strsignal, SIGINT, SIGTERM
 from time import sleep
 
-import imap
-import utils
+from imap import Imap
+from utils import *  # TODO
 
 
 running = True
@@ -56,21 +56,21 @@ def main():
     signal(SIGINT, signal_handler)
     signal(SIGTERM, signal_handler)
 
-    config, config_path = utils.open_and_load_config()
+    config, config_path = open_and_load_config()
 
     level = logging.getLevelName(
-        config.get(utils.SECTION_GENERAL_NAME, utils.LOG_LEVEL)
+        config.get(SECTION_GENERAL_NAME, LOG_LEVEL)
     )
     logger.setLevel(level)
 
     # Get some parameters for easier convenience
-    hostname = config.get(utils.SECTION_GENERAL_NAME, utils.HOSTNAME_NAME)
-    port = config.get(utils.SECTION_GENERAL_NAME, utils.PORT_NAME)
-    username = config.get(utils.SECTION_GENERAL_NAME, utils.USERNAME_NAME)
-    password = config.get(utils.SECTION_GENERAL_NAME, utils.PASSWORD_NAME)
-    mailbox = config.get(utils.SECTION_GENERAL_NAME, utils.MAILBOX_NAME)
+    hostname = config.get(SECTION_GENERAL_NAME, HOSTNAME_NAME)
+    port = config.get(SECTION_GENERAL_NAME, PORT_NAME)
+    username = config.get(SECTION_GENERAL_NAME, USERNAME_NAME)
+    password = config.get(SECTION_GENERAL_NAME, PASSWORD_NAME)
+    mailbox = config.get(SECTION_GENERAL_NAME, MAILBOX_NAME)
     polling_interval = config.get(
-        utils.SECTION_GENERAL_NAME, utils.POLLING_INTERVAL_NAME
+        SECTION_GENERAL_NAME, POLLING_INTERVAL_NAME
     )
 
     logger.info(
@@ -80,20 +80,18 @@ def main():
         config_path,
     )
 
-    mail_handler = imap.connect(hostname, port, username, password, mailbox)
+    imap = Imap(logger, hostname, port, username, password, mailbox, config)
 
     # MAIN LOOP
     while running:
-        if not imap.check_connection(mail_handler):
-            logger.warning("Check connection failed, trying to reconnect ...")
-            mail_handler = imap.connect(hostname, port, username, password, mailbox)
-        imap.process_mails(config, mail_handler)
+        imap.maybe_reconnect()
+        imap.process_mails()
         # If signal occurs during process, there is no need to sleep
         if running:
             sleep(float(polling_interval))
 
     # ENDING
-    imap.logout(mail_handler)
+    imap.logout()
     logger.info("imapmanager closed.")
 
 

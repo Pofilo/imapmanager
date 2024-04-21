@@ -49,7 +49,7 @@ You can change the path of the configuration file and set the environment variab
 ```
 black --check --diff --quiet "imapmanager"
 flake8 --max-line-length 88 "imapmanager"
-pylint --rcfile=.pylintrc -E "imapmanager"
+pylint --rcfile=.pylintrc "imapmanager"
 ```
 
 ## License
