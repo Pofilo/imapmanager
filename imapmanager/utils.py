@@ -126,13 +126,14 @@ def open_and_load_config():
     if path.isfile(config_path):
         try:
             config.read(config_path)
-        except configparser.ParsingError as error:
-            logger.critical(f"Parsing error: {error}")
+        except configparser.ParsingError as exc:
+            logger.exception("Parsing while reading conf: exc=%s", exc)
             exit(1)
     else:
         logger.critical(
-            f'config_file="{config_path}" not found, or set the env variable '
-            f'"{CONFIG_PATH_NAME}" accordingly'
+            "config_file=%s not found, or set the env variable %s accordingly",
+            config_path,
+            CONFIG_PATH_NAME,
         )
         exit(1)
 
@@ -166,6 +167,7 @@ def check_config(config):
     __check_config_key(config, SECTION_GENERAL_NAME, MAILBOX_NAME)
     __check_config_key(config, SECTION_GENERAL_NAME, POLLING_INTERVAL_NAME)
     __check_config_key(config, SECTION_GENERAL_NAME, IMAP_DEFAULT_FOLDER_NAME)
+    __check_config_key(config, SECTION_GENERAL_NAME, LOG_LEVEL)
 
 
 def __check_config_section(config, section):
@@ -176,7 +178,7 @@ def __check_config_section(config, section):
     Log and exit if the section is not found.
     """
     if not config.has_section(section):
-        logger.critical(f'section="{section}" not found in config file')
+        logger.critical("section=%s not found in config file", section)
         exit(1)
 
 
@@ -189,5 +191,5 @@ def __check_config_key(config, section, key):
     Log and exit if the key (or the section) is not found.
     """
     if not config.has_option(section, key):
-        logger.critical(f'key="{key}" not found in section="{section}" in config file')
+        logger.critical("key=%s not found in section=%s in config file", key, section)
         exit(1)

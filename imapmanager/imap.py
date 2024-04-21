@@ -50,7 +50,10 @@ def _check_rule_for_params(config, rule, rule_name, params):
             if argument.lower() in param.lower():
                 folder = value
                 logger.debug(
-                    f"Got a match for rule={rule_name} param={param} folder={folder}"
+                    "Got a match for rule=%s param=%s folder=%s",
+                    rule_name,
+                    param,
+                    folder,
                 )
                 return folder
 
@@ -105,10 +108,9 @@ def connect(hostname, port, username, password, mailbox):
         # Connect to the mail account
         mail_handler = imaplib.IMAP4_SSL(hostname, port)
         mail_handler.login(username, password)
-        logger.info(f'Successful connection as username="{username}"')
-    except (imaplib.IMAP4.error, BaseException) as error:
-        logger.critical(f"Login error: {error}")
-        logger.debug(f"traceback={traceback.format_exc()}")
+        logger.info("Successful connection as username=%s", username)
+    except (imaplib.IMAP4.error, BaseException) as exc:
+        logger.exception("Failed to login: err=%s", exc)
         sys.exit(1)
 
     mail_handler.select(mailbox)
@@ -125,9 +127,8 @@ def check_connection(mail_handler):
     connection_ok = True
     try:
         mail_handler.check()
-    except (imaplib.IMAP4.error, BaseException) as error:
-        logger.warning(f"Connection check failed: {error}")
-        logger.debug(f"traceback={traceback.format_exc()}")
+    except (imaplib.IMAP4.error, BaseException) as exc:
+        logger.exception("Failed to check connection: err=%s", exc)
         connection_ok = False
 
     return connection_ok
@@ -144,17 +145,15 @@ def process_mails(config, mail_handler):
     try:
         # Go into the mailbox
         mail_handler.select(mailbox)
-    except (imaplib.IMAP4.error, BaseException) as error:
-        logger.error(f"select() failed: {error}")
-        logger.debug(f"traceback={traceback.format_exc()}")
+    except (imaplib.IMAP4.error, BaseException) as exc:
+        logger.exception("Failed to select: err=%s", exc)
         return
 
     try:
         # Get the unseen mails of this directory
         typ, data = mail_handler.search(None, "UNSEEN")
-    except (imaplib.IMAP4.error, BaseException) as error:
-        logger.error(f"search() failed: {error}")
-        logger.debug(f"traceback={traceback.format_exc()}")
+    except (imaplib.IMAP4.error, BaseException) as exc:
+        logger.exception("Failed to search: err=%s", exc)
         return
 
     # Counter of the number of mails proccessed
@@ -166,6 +165,9 @@ def process_mails(config, mail_handler):
     # Check the good usage to parse mails
     for num in data[0].split():
         num = str(int(num) - count)
+        # The name of the folder where the current mail will be moved
+        folder_name = ""
+
         # This try-except seems to only be usefull if the message_from_bytes() fails
         try:
             # See the mail without changing his unread flag
@@ -173,8 +175,6 @@ def process_mails(config, mail_handler):
             # data[0][1] is the raw email
             raw_email = email.message_from_bytes(data[0][1])
 
-            # The name of the folder where the current mail will be moved
-            folder_name = ""
             mail_dest = []
             # Check if the mail has a 'subject' rule
             subject = raw_email[utils.IMAP_SUBJECT]
@@ -186,7 +186,7 @@ def process_mails(config, mail_handler):
 
             # Check if the mail has a 'from' rule (only if no rules applied yet)
             mail_from = raw_email[utils.IMAP_FROM]
-            logger.debug(f'field from="{mail_from}"')
+            logger.debug("field from=%s", mail_from)
             mail_from = utils.extract_and_sanitize_mail_addresses(mail_from)
             if mail_from:
                 # We don't want to deal with multiple senders
@@ -198,7 +198,7 @@ def process_mails(config, mail_handler):
 
             # Check if the mail has a 'to' rule (only if no rules applied yet)
             mail_to = raw_email[utils.IMAP_TO]
-            logger.debug(f'field to="{mail_to}"')
+            logger.debug("field to=%s", mail_to)
             mail_to = utils.extract_and_sanitize_mail_addresses(mail_to)
             # Init mail_dest with first mail found
             # (init in case a previous rule applied)
@@ -214,7 +214,7 @@ def process_mails(config, mail_handler):
             # Check if the mail has a 'cc' rule (only if no rules applied yet)
             # The values checked for the 'cc' rules are the ones of the 'to' rules
             mail_cc = raw_email[utils.IMAP_CC]
-            logger.debug(f'field cc="{mail_cc}"')
+            logger.debug("field cc=%s", mail_cc)
             if mail_cc:
                 mail_cc = utils.extract_and_sanitize_mail_addresses(mail_cc)
                 # The list can be empty after <extract_and_sanitize_mail_addresses>
@@ -230,37 +230,35 @@ def process_mails(config, mail_handler):
                 logger.debug("No rule for the mail, moving it into the default folder")
                 folder_name = _get_default_destination_folder(config)
 
-            if len(mail_dest) <= 3:
-                logger.info(
-                    f'GET mail subject="{subject}" from="{mail_from}" '
-                    f'dest="{mail_dest}" to be moved into folder="{folder_name}"'
-                )
-            else:
-                logger.info(
-                    f'GET mail subject="{subject}" from={mail_from}" with a lot of '
-                    f'dests ({len(mail_dest)}) to be moved into folder="{folder_name}"'
-                )
-                logger.debug(f"The lot of dests are: {mail_dest}")
-
-        except BaseException as exception:
-            folder_name = _get_default_destination_folder(config)
-            logger.error(
-                f'Error processing an email, moving it into folder="{folder_name}" '
-                f'err="{exception}"'
+            logger.info(
+                "GET mail subject=%s from=%s dest=%s to be moved into folder=%s",
+                subject,
+                mail_from,
+                mail_dest,
+                folder_name,
             )
-            logger.debug(f"traceback={traceback.format_exc()}")
+        except BaseException as exc:
+            folder_name = _get_default_destination_folder(config)
+            logger.exception(
+                "Error processing an email, moving it into folder=%s err=%s",
+                folder_name,
+                exc,
+            )
 
         # Check if the folder exists on the server
         if not _check_folder_exist_on_server(mail_handler, folder_name):
             logger.warning(
-                f'folder="{folder_name}" does not exist on the server, moving the mail '
-                f'into the default folder="{_get_default_destination_folder(config)}"'
+                "folder=%s does not exist on the server, moving the mail "
+                "into the default folder=%s",
+                folder_name,
+                _get_default_destination_folder(config),
             )
             folder_name = _get_default_destination_folder(config)
             if not _check_folder_exist_on_server(mail_handler, folder_name):
                 logger.critical(
-                    f'default folder="{folder_name}" does not exist on the server, '
-                    "please fix the configuration, exiting.."
+                    "default folder=%s does not exist on the server, "
+                    "please fix the configuration, exiting..",
+                    folder_name,
                 )
                 sys.exit(1)
 
@@ -268,8 +266,9 @@ def process_mails(config, mail_handler):
         result = mail_handler.copy(num, folder_name)
         if result[0] != "OK":
             logger.critical(
-                f'Mail with subject="{subject}" not copied to folder="{folder_name}", '
-                "exiting..."
+                "Mail with subject=%s not copied to folder=%s, exiting...",
+                subject,
+                folder_name,
             )
             sys.exit(1)
         # We delete the original mail
@@ -291,6 +290,5 @@ def logout(mail_handler):
         mail_handler.close()
         mail_handler.logout()
         logger.info("Successful disconnection")
-    except (imaplib.IMAP4.error, BaseException) as error:
-        logger.warning(f"Logout failed: {error}")
-        logger.debug(f"traceback={traceback.format_exc()}")
+    except (imaplib.IMAP4.error, BaseException) as exc:
+        logger.exception("Failed to close/logout: err=%s", exc)

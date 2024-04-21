@@ -21,7 +21,7 @@ with this program. If not, see <http://www.gnu.org/licenses/>.
 
 
 import logging
-import signal
+from signal import signal, strsignal, SIGINT, SIGTERM
 from time import sleep
 
 import imap
@@ -37,7 +37,7 @@ logging.basicConfig(
 logger = logging.getLogger("imapmanager")
 
 
-def signal_handler(signal_value, frame):
+def signal_handler(signal_value, _frame):
     """
     Function to treat signals catched.
     If a signal is catched, <running> is set to False and the main loop will exit soon.
@@ -45,9 +45,7 @@ def signal_handler(signal_value, frame):
     :param  frame               unused (needed because of the signal API)
     """
     global running
-    # TODO: strsignal will be available in python 3.8
-    # logger.debug(f"Signal {signal.strsignal(signal_value)} catched, stopping...")
-    logger.debug(f'Signal "{signal_value}" catched, stopping...')
+    logger.info("Signal %s catched, stopping...", strsignal(signal_value))
     running = False
 
 
@@ -55,8 +53,8 @@ def main():
     logger.info("Starting imapmanager...")
 
     # INIT
-    signal.signal(signal.SIGINT, signal_handler)
-    signal.signal(signal.SIGTERM, signal_handler)
+    signal(SIGINT, signal_handler)
+    signal(SIGTERM, signal_handler)
 
     config, config_path = utils.open_and_load_config()
 
@@ -76,8 +74,10 @@ def main():
     )
 
     logger.info(
-        f'imapmanager initialized with on "{hostname}" with "{username}" '
-        f'using {config_path}"'
+        "imapmanager initialized with on %s with %s using %s",
+        hostname,
+        username,
+        config_path,
     )
 
     mail_handler = imap.connect(hostname, port, username, password, mailbox)

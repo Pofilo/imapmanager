@@ -66,5 +66,3 @@ target/
 
 *imapmanager.conf
 *.code-workspace
-.vscode/
-.pylintrc
