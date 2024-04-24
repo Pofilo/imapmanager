@@ -16,7 +16,6 @@ FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more de
 
 You should have received a copy of the GNU General Public License along
 with this program. If not, see <http://www.gnu.org/licenses/>.
-
 """
 
 
@@ -24,8 +23,9 @@ import logging
 from signal import signal, strsignal, SIGINT, SIGTERM
 from time import sleep
 
+from constants import LOG_LEVEL_NAME, POLLING_INTERVAL_NAME, SECTION_GENERAL_NAME
+from conf import ImapConf
 from imap import Imap
-from utils import *  # TODO
 
 
 running = True
@@ -55,32 +55,13 @@ def main():
     # INIT
     signal(SIGINT, signal_handler)
     signal(SIGTERM, signal_handler)
+    config = ImapConf(logger)
+    log_level = logging.getLevelName(config.get(SECTION_GENERAL_NAME, LOG_LEVEL_NAME))
+    logger.setLevel(log_level)
 
-    config, config_path = open_and_load_config()
+    imap = Imap(logger, config)
 
-    level = logging.getLevelName(
-        config.get(SECTION_GENERAL_NAME, LOG_LEVEL)
-    )
-    logger.setLevel(level)
-
-    # Get some parameters for easier convenience
-    hostname = config.get(SECTION_GENERAL_NAME, HOSTNAME_NAME)
-    port = config.get(SECTION_GENERAL_NAME, PORT_NAME)
-    username = config.get(SECTION_GENERAL_NAME, USERNAME_NAME)
-    password = config.get(SECTION_GENERAL_NAME, PASSWORD_NAME)
-    mailbox = config.get(SECTION_GENERAL_NAME, MAILBOX_NAME)
-    polling_interval = config.get(
-        SECTION_GENERAL_NAME, POLLING_INTERVAL_NAME
-    )
-
-    logger.info(
-        "imapmanager initialized with on %s with %s using %s",
-        hostname,
-        username,
-        config_path,
-    )
-
-    imap = Imap(logger, hostname, port, username, password, mailbox, config)
+    polling_interval = config.get(SECTION_GENERAL_NAME, POLLING_INTERVAL_NAME)
 
     # MAIN LOOP
     while running:

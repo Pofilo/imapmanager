@@ -14,45 +14,15 @@ FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more de
 
 You should have received a copy of the GNU General Public License along
 with this program. If not, see <http://www.gnu.org/licenses/>.
-
 """
 
-import argparse
 import base64
-import configparser
 import logging
 import quopri
-from os import getenv, path
 import re
-from sys import exit
 
 
 logger = logging.getLogger("imapmanager")
-
-# CONFIGURATION VARIABLES NAMES
-CONFIG_PATH_NAME = "IMAPMANAGER_CONFIG_PATH"
-SECTION_GENERAL_NAME = "GENERAL"
-HOSTNAME_NAME = "IMAP_HOSTNAME"
-PORT_NAME = "IMAP_PORT"
-USERNAME_NAME = "IMAP_USERNAME"
-PASSWORD_NAME = "IMAP_PASSWORD"
-MAILBOX_NAME = "IMAP_MAILBOX"
-POLLING_INTERVAL_NAME = "POLLING_INTERVAL"
-IMAP_DEFAULT_FOLDER_NAME = "DEFAULT_FOLDER"
-LOG_LEVEL = "LOG_LEVEL"
-SECTION_SUBJECT_NAME = "SUBJECT"
-SECTION_FROM_NAME = "FROM"
-SECTION_DEST_NAME = "DEST"
-
-# IMAP VARIABLES
-IMAP_SUBJECT = "subject"
-IMAP_FROM = "from"
-IMAP_TO = "to"
-IMAP_CC = "cc"
-
-# DEFAULT VARIABLES
-DEFAULT_CONFIG_PATH = "/etc/imapmanager.conf"
-ENCODING = "utf-8"
 
 
 def extract_and_sanitize_mail_addresses(addresses):
@@ -105,91 +75,3 @@ def decode_subject(subject):
         subject = "".join(line)
 
     return subject
-
-
-def open_and_load_config():
-    """
-    Function to parse arguments and then open and load the configuration file.
-    """
-
-    # Check no arguments are passed to imapmanager
-    parser = argparse.ArgumentParser()
-    # Without parsers defined, this line fails if there is an argument
-    # TODO: why that ??
-    # _args = parser.parse_args()
-    parser.parse_args()
-
-    # Open and load config file
-    config_path = getenv(CONFIG_PATH_NAME, DEFAULT_CONFIG_PATH)
-    config = configparser.ConfigParser()
-
-    if path.isfile(config_path):
-        try:
-            config.read(config_path)
-        except configparser.ParsingError as exc:
-            logger.exception("Parsing while reading conf: exc=%s", exc)
-            exit(1)
-    else:
-        logger.critical(
-            "config_file=%s not found, or set the env variable %s accordingly",
-            config_path,
-            CONFIG_PATH_NAME,
-        )
-        exit(1)
-
-    # Check if config is valid
-    check_config(config)
-
-    return config, config_path
-
-
-def check_config(config):
-    """
-    Function used to check if the configuration is valid
-    (aka contains all mandatory fields).
-    :param      config      the configuration to check
-    """
-
-    # TODO: better use a map/array of the mandatory section/keys rather than
-    # calling each one individually
-
-    # Check all section exist
-    __check_config_section(config, SECTION_GENERAL_NAME)
-    __check_config_section(config, SECTION_SUBJECT_NAME)
-    __check_config_section(config, SECTION_FROM_NAME)
-    __check_config_section(config, SECTION_DEST_NAME)
-
-    # Check all mandatories keys
-    __check_config_key(config, SECTION_GENERAL_NAME, HOSTNAME_NAME)
-    __check_config_key(config, SECTION_GENERAL_NAME, PORT_NAME)
-    __check_config_key(config, SECTION_GENERAL_NAME, USERNAME_NAME)
-    __check_config_key(config, SECTION_GENERAL_NAME, PASSWORD_NAME)
-    __check_config_key(config, SECTION_GENERAL_NAME, MAILBOX_NAME)
-    __check_config_key(config, SECTION_GENERAL_NAME, POLLING_INTERVAL_NAME)
-    __check_config_key(config, SECTION_GENERAL_NAME, IMAP_DEFAULT_FOLDER_NAME)
-    __check_config_key(config, SECTION_GENERAL_NAME, LOG_LEVEL)
-
-
-def __check_config_section(config, section):
-    """
-    Check that the given section exists in the configuration.
-    :param      config      the configuration representation
-    :param      section     the section to check
-    Log and exit if the section is not found.
-    """
-    if not config.has_section(section):
-        logger.critical("section=%s not found in config file", section)
-        exit(1)
-
-
-def __check_config_key(config, section, key):
-    """
-    Check that the given key exists in the given section of the configuration.
-    :param      config      the configuration representation
-    :param      section     the section to check
-    :param      key         the key to check
-    Log and exit if the key (or the section) is not found.
-    """
-    if not config.has_option(section, key):
-        logger.critical("key=%s not found in section=%s in config file", key, section)
-        exit(1)

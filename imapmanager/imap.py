@@ -17,14 +17,30 @@ with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
 
-from imaplib import IMAP4_SSL
 import email
+from imaplib import IMAP4_SSL
+from logging import Logger
 import sys
-from logging import Logger, getLogger  # TODO: remove getLogger
 
-from utils import *  # TODO
-
-logger = getLogger("imapmanager")
+from conf import ImapConf
+from constants import (
+    ENCODING,
+    HOSTNAME_NAME,
+    IMAP_CC,
+    IMAP_DEFAULT_FOLDER_NAME,
+    IMAP_FROM,
+    IMAP_SUBJECT,
+    IMAP_TO,
+    MAILBOX_NAME,
+    PASSWORD_NAME,
+    PORT_NAME,
+    SECTION_FROM_NAME,
+    SECTION_DEST_NAME,
+    SECTION_GENERAL_NAME,
+    SECTION_SUBJECT_NAME,
+    USERNAME_NAME,
+)
+from utils import decode_subject, extract_and_sanitize_mail_addresses
 
 
 # TODO: this function is not understandable
@@ -42,13 +58,13 @@ def _check_rule_for_params(config, rule, rule_name, params):
     """
     folder = ""
     # Check if the mail has a rule
-    for argument, value in list(config.items(rule)):
+    for argument, value in list(config._config.items(rule)):
         # Remove the quotes
         argument = argument[1:-1]
         for param in params:
             if argument.lower() in param.lower():
                 folder = value
-                logger.debug(
+                config.logger.debug(
                     "Got a match for rule=%s param=%s folder=%s",
                     rule_name,
                     param,
@@ -59,46 +75,29 @@ def _check_rule_for_params(config, rule, rule_name, params):
     return folder
 
 
-def _get_default_destination_folder(config):
-    """
-    This function returns the IMAP default destination folder from configuration.
-    It corresponds to the folder used if no rule matches the mail.
-    :param      config      the configuration
-    :return:                the IMAP default folder
-    """
-    # Get the default folder in the config file
-    return config.get(SECTION_GENERAL_NAME, IMAP_DEFAULT_FOLDER_NAME)
-
-
 class Imap:
     def __init__(
         self,
         logger: Logger,
-        hostname: str,
-        port: str,
-        username: str,
-        password: str,
-        mailbox: str,
-        config,  # : TODO typings once config is an object or something clean
+        config: ImapConf,
     ) -> None:
-        """
-        :param      hostname    the hostname of the mail server
-        :param      port        the port of the mail server
-        :param      username    the name of the user
-        :param      password    the password of the user
-        :param      mailbox     the name of the folder where imapmanager will process
-                                unread mails
-        """
         self.logger = logger
-        self._hostname = hostname
-        self._port = port
-        self._username = username
-        self._password = password
-        self._mailbox = mailbox
+        self._hostname = config.get(SECTION_GENERAL_NAME, HOSTNAME_NAME)
+        self._port = config.get(SECTION_GENERAL_NAME, PORT_NAME)
+        self._username = config.get(SECTION_GENERAL_NAME, USERNAME_NAME)
+        self._password = config.get(SECTION_GENERAL_NAME, PASSWORD_NAME)
+        self._mailbox = config.get(SECTION_GENERAL_NAME, MAILBOX_NAME)
+        self._default_destination_folder = config.get(
+            SECTION_GENERAL_NAME, IMAP_DEFAULT_FOLDER_NAME
+        )
         self._handler: IMAP4_SSL = None
-        self._config = config
+        self.config = config
 
         self._connect()
+
+        logger.info(
+            "imapmanager initialized with on %s with %s", self._hostname, self._username
+        )
 
     def _connect(self) -> None:
         try:
@@ -127,7 +126,7 @@ class Imap:
         """
         This function check that the given folder exists on the server.
         Folder on the server looks like:
-            (\HasNoChildren) "." "INBOX.spam"  # noqa: W1401
+            (\HasNoChildren) "." "INBOX.spam"  # noqa: W605
             (\HasNoChildren) "." INBOX.spam  # noqa: W605
         :param      folder_name         the name of the folder to check
         :return                         True if the folder exists, False otherwise.
@@ -143,7 +142,7 @@ class Imap:
         """
         Process all mails mark as UNREAD in the mailbox.
         """
-        mailbox = self._config.get(SECTION_GENERAL_NAME, MAILBOX_NAME)
+        mailbox = self.config.get(SECTION_GENERAL_NAME, MAILBOX_NAME)
 
         try:
             # Go into the mailbox
@@ -184,7 +183,7 @@ class Imap:
                 if subject:
                     subject = decode_subject(subject)
                     folder_name = _check_rule_for_params(
-                        self._config, SECTION_SUBJECT_NAME, IMAP_SUBJECT, [subject]
+                        self.config, SECTION_SUBJECT_NAME, IMAP_SUBJECT, [subject]
                     )
 
                 # Check if the mail has a 'from' rule (only if no rules applied yet)
@@ -196,7 +195,7 @@ class Imap:
                     mail_from = mail_from[0]
                     if not folder_name:
                         folder_name = _check_rule_for_params(
-                            self._config, SECTION_FROM_NAME, IMAP_FROM, [mail_from]
+                            self.config, SECTION_FROM_NAME, IMAP_FROM, [mail_from]
                         )
 
                 # Check if the mail has a 'to' rule (only if no rules applied yet)
@@ -211,7 +210,7 @@ class Imap:
                     mail_dest = mail_dest + mail_to
                     if not folder_name:
                         folder_name = _check_rule_for_params(
-                            self._config, SECTION_DEST_NAME, IMAP_TO, mail_to
+                            self.config, SECTION_DEST_NAME, IMAP_TO, mail_to
                         )
 
                 # Check if the mail has a 'cc' rule (only if no rules applied yet)
@@ -225,7 +224,7 @@ class Imap:
                         mail_dest = mail_dest + mail_cc
                         if not folder_name:
                             folder_name = _check_rule_for_params(
-                                self._config, SECTION_DEST_NAME, IMAP_CC, mail_cc
+                                self.config, SECTION_DEST_NAME, IMAP_CC, mail_cc
                             )
 
                 # If we still don't have a rule for the mail, take the default folder
@@ -233,7 +232,7 @@ class Imap:
                     self.logger.debug(
                         "No rule for the mail, moving it into the default folder"
                     )
-                    folder_name = _get_default_destination_folder(self._config)
+                    folder_name = self._default_destination_folder
 
                 self.logger.info(
                     "GET mail subject=%s from=%s dest=%s to be moved into folder=%s",
@@ -243,7 +242,7 @@ class Imap:
                     folder_name,
                 )
             except Exception as exc:
-                folder_name = _get_default_destination_folder(self._config)
+                folder_name = self._default_destination_folder
                 self.logger.exception(
                     "Error processing an email, moving it into folder=%s err=%s",
                     folder_name,
@@ -256,9 +255,9 @@ class Imap:
                     "folder=%s does not exist on the server, moving the mail "
                     "into the default folder=%s",
                     folder_name,
-                    _get_default_destination_folder(self._config),
+                    self._default_destination_folder,
                 )
-                folder_name = _get_default_destination_folder(self._config)
+                folder_name = self._default_destination_folder
                 if not self._check_folder_exist_on_server(folder_name):
                     self.logger.critical(
                         "default folder=%s does not exist on the server, "
