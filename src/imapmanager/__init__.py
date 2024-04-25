@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-imapmanager.py: imapmanager's main file.
+__init__.py: imapmanager's main file.
 
 imapmanager: Connect and manage your mail account through IMAP.
 Copyright (C) pofilo <git@pofilo.fr>
@@ -23,9 +23,13 @@ import logging
 from signal import signal, strsignal, SIGINT, SIGTERM
 from time import sleep
 
-from constants import LOG_LEVEL_NAME, POLLING_INTERVAL_NAME, SECTION_GENERAL_NAME
-from conf import ImapConf
-from imap import Imap
+from imapmanager.constants import (
+    LOG_LEVEL_NAME,
+    POLLING_INTERVAL_NAME,
+    SECTION_GENERAL_NAME,
+)
+from imapmanager.conf import ImapConf
+from imapmanager.imap import Imap
 
 
 running = True

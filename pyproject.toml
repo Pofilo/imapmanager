@@ -1,0 +1,41 @@
+[project]
+name = "imapmanager"
+version = "0.3.2-dev"  # REQUIRED, although can be dynamic
+description = "Connect and manage your mail account through IMAP."
+readme = "README.md"
+requires-python = "~=3.12.3"
+license = {file = "LICENSE"}
+keywords = ["imap", "python"]
+
+authors = [
+    {name = "pofilo", email = "git@pofilo.fr"},
+]
+maintainers = [
+    {name = "pofilo", email = "git@pofilo.fr"},
+]
+
+classifiers = [
+    "4 - Beta",
+    "Programming Language :: Python"
+]
+
+dependencies = [
+    "configparser==7.0.0",
+]
+
+# $ pip install .[dev]
+[project.optional-dependencies]
+linters = [
+    "black~=24.4.1",
+    "flake8~=7.0.0",
+    "pycodestyle~=2.11.1",
+    "pylint~=3.1.0",
+]
+
+[project.urls]
+Repository = "https://git.pofilo.fr/pofilo/imapmanager"
+"Bug Tracker" = "https://git.pofilo.fr/pofilo/imapmanager/issues"
+Changelog = "https://git.pofilo.fr/pofilo/imapmanager/graph"
+
+[project.scripts]
+imapmanager = "imapmanager:main"

@@ -21,7 +21,7 @@ from logging import Logger
 from os import getenv, path
 from sys import exit
 
-from constants import (
+from imapmanager.constants import (
     CONFIG_PATH_NAME,
     DEFAULT_CONFIG_PATH,
     IMAP_DEFAULT_FOLDER_NAME,

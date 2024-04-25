@@ -1,5 +1,5 @@
 # IMAP Manager
-Last stable version [available here](https://git.pofilo.fr/pofilo/imapmanager/releases).
+Last stable version [available here](https://git.pofilo.fr/pofilo/imapmanager/tags).
 
 Connect and manage your emails through IMAP over SSL.
 
@@ -19,14 +19,14 @@ The first objective is to **automatically sort your mails** into the desired fol
 
 ### Manual with a virtual environment
 
-+ Download the last stable version [available here](https://git.pofilo.fr/pofilo/imapmanager/releases)
++ Download the last stable version [available here](https://git.pofilo.fr/pofilo/imapmanager/tags)
 + `cd imapmanager`
 + Create virtual environment: `python3.12.3 -m venv venv`
 + Source it: `source venv/bin/activate`
-+ Install dependencies: `pip install -r requirements.txt`
++ Install dependencies: `pip install .`
 + `cp config/imapmanager.sample.conf /etc/imapmanager.conf`
 + Edit */etc/imapmanager.conf*
-+ `imapmanager/imapmanager.py`
++ `imapmanager`
 
 You can change the path of the configuration file and set the environment variable `export IMAPMANAGER_CONFIG_PATH="config/imapmanager.conf"`
 
@@ -47,9 +47,9 @@ You can change the path of the configuration file and set the environment variab
 + Run linters:
 
 ```
-black --check --diff --quiet "imapmanager"
-flake8 --max-line-length 88 "imapmanager"
-pylint --rcfile=.pylintrc "imapmanager"
+black --check --diff --quiet "src/imapmanager"
+flake8 --max-line-length 88 "src/imapmanager"
+pylint --rcfile=.pylintrc "src/imapmanager"
 ```
 
 ## License
@@ -59,4 +59,3 @@ This project is licensed under the GNU GPL License. See the [LICENSE](https://gi
 ## Bugs
 
 If you experience an issue, you have other ideas for the development, or anything else, feel free to [report it](https://git.pofilo.fr/pofilo/imapmanager/issues) or [fix it with a PR](https://git.pofilo.fr/pofilo/imapmanager/pulls)!
-

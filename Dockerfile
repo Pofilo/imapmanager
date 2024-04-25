@@ -4,12 +4,10 @@ FROM registry.pofilo.fr/python:3.12.3-alpine3.19
 LABEL maintainer="Pofilo <git@pofilo.fr>"
 
 ENV IMAPMANAGER_CONFIG_PATH="/etc/imapmanager.conf"
+ENV PYTHONUNBUFFERED 1
 
-COPY requirements.txt /tmp
-RUN pip install -r /tmp/requirements.txt \
-    && rm /tmp/requirements.txt
+WORKDIR /imapmanager
+COPY . .
+RUN pip install . --root-user-action=ignore && rm -fr /imapmanager
 
-WORKDIR /usr/bin/local
-COPY imapmanager/*\.py imapmanager/
-
-ENTRYPOINT ["imapmanager/imapmanager.py"]
+ENTRYPOINT ["imapmanager"]

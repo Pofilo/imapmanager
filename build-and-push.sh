@@ -16,7 +16,7 @@ NAME=imapmanager
 echo "---> Do you want to build the latest image of ${NAME}? [y/n]"
 read -r answer
 if [[ "${answer}" == "y" ]]; then
-    docker build -t "${NAME}":latest . --no-cache
+    docker build -t "${NAME}":latest . --no-cache --progress=plain
     scriptDone
 fi
 

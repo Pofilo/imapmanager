@@ -16,14 +16,13 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
-
 import email
 from imaplib import IMAP4_SSL
 from logging import Logger
 import sys
 
-from conf import ImapConf
-from constants import (
+from imapmanager.conf import ImapConf
+from imapmanager.constants import (
     ENCODING,
     HOSTNAME_NAME,
     IMAP_CC,
@@ -40,7 +39,7 @@ from constants import (
     SECTION_SUBJECT_NAME,
     USERNAME_NAME,
 )
-from utils import decode_subject, extract_and_sanitize_mail_addresses
+from imapmanager.utils import decode_subject, extract_and_sanitize_mail_addresses
 
 
 # TODO: this function is not understandable
