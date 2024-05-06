@@ -69,8 +69,8 @@ def main():
 
     # MAIN LOOP
     while running:
-        imap.maybe_reconnect()
         imap.process_mails()
+
         # If signal occurs during process, there is no need to sleep
         if running:
             sleep(float(polling_interval))

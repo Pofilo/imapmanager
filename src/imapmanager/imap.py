@@ -98,7 +98,12 @@ class Imap:
             "imapmanager initialized with on %s with %s", self._hostname, self._username
         )
 
-    def _connect(self) -> None:
+    def _connect(self) -> bool:
+        """
+        Connect and select the mailbox.
+        # TODO: do not exit but manage errors properly.
+        :return     True if the connection is successful, exit otherwise.
+        """
         try:
             # Connect to the mail account
             self._handler = IMAP4_SSL(self._hostname, self._port)
@@ -109,17 +114,22 @@ class Imap:
             sys.exit(1)
 
         self._handler.select(self._mailbox)
+        return True
 
-    def maybe_reconnect(self) -> None:
+    def _maybe_reconnect(self) -> bool:
         """
         If handler is not connected yet or disconnected, reconnect it.
+        :return     True if the connection is successful, False otherwise.
         """
         try:
-            if not self._handler.check():
-                self.logger.warning("Check connection failed, trying to reconnect ...")
-                self._connect()
+            if self._handler.check():
+                return True
         except Exception as exc:
-            self.logger.exception("Failed to check connection: err=%s", exc)
+            self.logger.warning(
+                "Check connection failed, trying to reconnect: err=%s",
+                exc,
+            )
+            return self._connect()
 
     def _check_folder_exist_on_server(self, folder_name) -> bool:
         """
@@ -141,6 +151,11 @@ class Imap:
         """
         Process all mails mark as UNREAD in the mailbox.
         """
+        # First, check if the connection is still alive
+        if not self._maybe_reconnect():
+            # Connection failure, try again later...
+            return
+
         mailbox = self.config.get(SECTION_GENERAL_NAME, MAILBOX_NAME)
 
         try:
