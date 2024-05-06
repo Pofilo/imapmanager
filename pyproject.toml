@@ -1,6 +1,7 @@
 [project]
 name = "imapmanager"
-version = "0.3.2-dev"  # REQUIRED, although can be dynamic
+# Still 0.0.1-dev because lazy to keep this line updated over time
+version = "0.0.1-dev"  # REQUIRED, although can be dynamic
 description = "Connect and manage your mail account through IMAP."
 readme = "README.md"
 requires-python = "~=3.12.3"
