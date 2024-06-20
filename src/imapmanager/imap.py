@@ -43,44 +43,12 @@ from imapmanager.constants import (
 from imapmanager.utils import decode_subject, extract_and_sanitize_mail_addresses
 
 
-# TODO: this function is not understandable
-def _analyse_filters_for_category(
-    config: ImapConf,
-    category: str,
-    category_name: str,
-    params: List[str],
-):
-    """
-    Check if one over each params is matching the given category.
-    If there is a match, the folder and True are returned.
-    The function stop searching after a first match.
-    :param      config      the configuration where to get the info from
-    :param      category        the configuration section corresponding to the category
-                                to check (SUBJECT, FROM, DEST, ...)
-    :param      category_name   the name of the category (subject, from, to, cc, ...)
-    :param      params      the values to check if one is present in the rule
-    :return     folder      the folder name, an empty string otherwise
-    :return     used        True if the rule was matching something, False otherwise
-    """
-    rules = config[SECTION_FILTERS_NAME].get(category)
-    if rules:
-        for folder, filters in rules.items():
-            # filters are all the values in conf to check
-            for filter in filters:
-                for param in params:
-                    if filter.lower() in param.lower():
-                        config.logger.debug(
-                            "Got a match for category=%s param=%s folder=%s",
-                            category_name,
-                            param,
-                            folder,
-                        )
-                        return folder, True
-
-    return None, False
-
-
 class Imap:
+    """
+    Main class of ImapManager.
+    Deal with imap connection and process each mail in the inbox.
+    """
+
     def __init__(
         self,
         logger: Logger,
@@ -88,10 +56,7 @@ class Imap:
     ) -> None:
         self.logger = logger
         self._hostname = config.get(HOSTNAME_NAME)
-        self._port = config.get(PORT_NAME)
         self._username = config.get(USERNAME_NAME)
-        self._password = config.get(PASSWORD_NAME)
-        self._mailbox = config.get(MAILBOX_NAME)
         self._default_destination_folder = config.get(IMAP_DEFAULT_FOLDER_NAME)
         self._handler: IMAP4_SSL = None
         self.config = config
@@ -110,14 +75,14 @@ class Imap:
         """
         try:
             # Connect to the mail account
-            self._handler = IMAP4_SSL(self._hostname, self._port)
-            self._handler.login(self._username, self._password)
+            self._handler = IMAP4_SSL(self._hostname, self.config.get(PORT_NAME))
+            self._handler.login(self._username, self.config.get(PASSWORD_NAME))
             self.logger.info("Successful connection as username=%s", self._username)
         except Exception as exc:
             self.logger.exception("Failed to login: err=%s", exc)
             sys.exit(1)
 
-        self._handler.select(self._mailbox)
+        self._handler.select(self.config.get(MAILBOX_NAME))
         return True
 
     def _maybe_reconnect(self) -> bool:
@@ -134,6 +99,7 @@ class Imap:
                 exc,
             )
             return self._connect()
+        return False
 
     def _check_folder_exist_on_server(self, folder_name) -> bool:
         """
@@ -179,10 +145,8 @@ class Imap:
         # Counter of the number of mails proccessed
         count = 0
 
-        # Parse the mails
-        # TODO
-        # This for loop is called individually even if there is multiple mails
-        # Check the good usage to parse mails
+        # This for loop is called with index 0 even if there is multiple mails because
+        # the mail is supposed to move in the end.
         for num in data[0].split():
             num = str(int(num) - count)
             # The name of the folder where the current mail will be moved
@@ -241,7 +205,47 @@ class Imap:
             # Update counter
             count += 1
 
+    def _analyse_filters_for_category(
+        self,
+        category: str,
+        category_name: str,
+        params: List[str],
+    ):
+        """
+        Check if at least one param of params is matching the given category by checking
+        all its rules and filters.
+        If there is a match, the result is returned.
+        The function stop searching after a first match.
+        :param      config      the configuration where to get the info from
+        :param      category    the configuration section corresponding to the category
+                                to check (SUBJECT, FROM, DEST, ...)
+        :param      category_name   the name of the category (subject, from, to, cc, ..)
+        :param      params      the values to check if one is present in the rule
+        :return     folder      the folder name, an empty string otherwise
+        :return     used        True if the rule was matching something, False otherwise
+        """
+        # Get all rules for the category
+        rules = self.config[SECTION_FILTERS_NAME].get(category)
+        if rules:
+            # A rule has a list of rule composed of rules and filters
+            for folder, filters in rules.items():
+                # Check every filter in the order
+                for filter_ in filters:  # filter already exist
+                    # For this filter, check if at least one param matches
+                    for param in params:
+                        if filter_.lower() in param.lower():
+                            self.config.logger.debug(
+                                "Got a match for category=%s param=%s folder=%s",
+                                category_name,
+                                param,
+                                folder,
+                            )
+                            return folder, True
+
+        return None, False
+
     def _unsafe_process_one_email(self, raw_email, mail_subject):
+        # pylint: disable=too-many-branches
         folder_name = None
         rule_used = None
         mail_dest = []
@@ -249,8 +253,8 @@ class Imap:
         # Check if the mail has a 'subject' rule
         if mail_subject:
             mail_subject = decode_subject(mail_subject)
-            folder_name, used = _analyse_filters_for_category(
-                self.config, SECTION_SUBJECT_NAME, IMAP_SUBJECT, [mail_subject]
+            folder_name, used = self._analyse_filters_for_category(
+                SECTION_SUBJECT_NAME, IMAP_SUBJECT, [mail_subject]
             )
             if used:
                 rule_used = IMAP_SUBJECT
@@ -263,8 +267,8 @@ class Imap:
             # We don't want to deal with multiple senders
             mail_from = mail_from[0]
             if not folder_name:
-                folder_name, used = _analyse_filters_for_category(
-                    self.config, SECTION_FROM_NAME, IMAP_FROM, [mail_from]
+                folder_name, used = self._analyse_filters_for_category(
+                    SECTION_FROM_NAME, IMAP_FROM, [mail_from]
                 )
                 if used:
                     rule_used = IMAP_FROM
@@ -280,8 +284,8 @@ class Imap:
             # (init in case a previous rule applied)
             mail_dest = mail_dest + mail_to
             if not folder_name:
-                folder_name, used = _analyse_filters_for_category(
-                    self.config, SECTION_DEST_NAME, IMAP_TO, mail_to
+                folder_name, used = self._analyse_filters_for_category(
+                    SECTION_DEST_NAME, IMAP_TO, mail_to
                 )
                 if used:
                     rule_used = IMAP_TO
@@ -296,8 +300,8 @@ class Imap:
             if mail_cc:
                 mail_dest = mail_dest + mail_cc
                 if not folder_name:
-                    folder_name, used = _analyse_filters_for_category(
-                        self.config, SECTION_DEST_NAME, IMAP_CC, mail_cc
+                    folder_name, used = self._analyse_filters_for_category(
+                        SECTION_DEST_NAME, IMAP_CC, mail_cc
                     )
                 if used:
                     rule_used = IMAP_CC

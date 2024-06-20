@@ -48,8 +48,10 @@ def extract_and_sanitize_mail_addresses(addresses):
     return addresses
 
 
-# Credits: https://stackoverflow.com/a/43393449
 def decode_subject(subject):
+    """
+    Credits: https://stackoverflow.com/a/43393449
+    """
     pattern = re.compile(
         r"(([^=]*)=\?([^\?]*)\?([BbQq])\?([^\?]*)\?=([^=]*))", re.IGNORECASE
     )
@@ -57,7 +59,7 @@ def decode_subject(subject):
     line = []
     if data:
         for g in data:
-            (raw, extra1, encoding, method, string, extra) = g
+            (_raw, extra1, encoding, method, string, extra) = g
             extra1 = extra1.replace("\r", "").replace("\n", "").strip()
             if len(extra1) > 0:
                 line.append(extra1)

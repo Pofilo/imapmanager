@@ -31,7 +31,7 @@ from imapmanager.conf import ImapConf
 from imapmanager.imap import Imap
 
 
-running = True
+running = True  # pylint: disable=invalid-name
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -47,12 +47,15 @@ def signal_handler(signal_value, _frame):
     :param  signal_value        the value of the signal catched
     :param  frame               unused (needed because of the signal API)
     """
-    global running
+    global running  # pylint: disable=global-statement
     logger.info("Signal %s catched, stopping...", strsignal(signal_value))
     running = False
 
 
 def main():
+    """
+    Main function for the imapmanager, everything starts here!
+    """
     logger.info("Starting imapmanager...")
 
     # INIT
