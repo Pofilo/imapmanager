@@ -15,6 +15,12 @@ The first objective is to **automatically sort your mails** into the desired fol
 - **from**
 - **dest** (including **to** and **cc**)
 
+## Actions
+
+If a mail match with a filter, some actions can be done.
+List of supported actions:
+- `move`: move the mail into the desired folder (this action is mandatory)
+
 ## Installation
 
 ### Manual with a virtual environment
@@ -43,7 +49,7 @@ You can change the path of the configuration file and set the environment variab
 
 ## Development
 
-+ Install dependencies: `pip install -r test-requirements.txt`
++ Install dependencies: `pip install .[linters]`
 + Run linters:
 
 ```

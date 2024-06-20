@@ -40,22 +40,32 @@ logLevel: INFO
 # Each category is working in the same way:
 #   - the key represents the folden name
 #   - the values represent the filters to analyse
+# Each filter is composed of the key (what to analyse) and a list of actions.
 # A mail will be moved if the one filter (between quotes) is part of the field of the mail.
+#
+# Example:
+# filters:  -> name of the section
+#   subject:  -> name of the category
+#     INBOX.spamFolder:  -> name of the destination folder
+#       - "[SPAM]": [move]  -> (1)
+#       - "*** SPAM ***": [move]
+# (1) -> "[SPAM]": what to check in the mail according to the category
+# (1) -> [move]: list of actions if mail and filter matches
 #
 
 filters:
   subject:
     INBOX.spamFolder:
-      - "[SPAM]"
-      - "*** SPAM ***"
+      - "[SPAM]": [move]
+      - "*** SPAM ***": [move]
 
   from:
     INBOX.folder1:
-      - "mail1@domain.com"
+      - "mail1@domain.com": [move]
 
   dest:
     INBOX.folder1:
-      - "mail1@domain1.com"
+      - "mail1@domain1.com": [move]
     INBOX.example folder with spaces:
-      - "mail2@domain1.com"
+      - "mail2@domain1.com": [move]
 

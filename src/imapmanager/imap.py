@@ -159,9 +159,7 @@ class Imap:
                 # data[0][1] is the raw email
                 raw_email = email.message_from_bytes(data[0][1])
 
-                mail_subject = raw_email[IMAP_SUBJECT]
-                if mail_subject:
-                    mail_subject = decode_subject(mail_subject)
+                mail_subject = decode_subject(raw_email[IMAP_SUBJECT])
 
                 folder_name = self._unsafe_process_one_email(raw_email, mail_subject)
             except Exception as exc:
@@ -221,8 +219,8 @@ class Imap:
                                 to check (SUBJECT, FROM, DEST, ...)
         :param      category_name   the name of the category (subject, from, to, cc, ..)
         :param      params      the values to check if one is present in the rule
-        :return     folder      the folder name, an empty string otherwise
         :return     used        True if the rule was matching something, False otherwise
+        :return     folder      the folder name, an empty string otherwise
         """
         # Get all rules for the category
         rules = self.config[SECTION_FILTERS_NAME].get(category)
@@ -230,19 +228,26 @@ class Imap:
             # A rule has a list of rule composed of rules and filters
             for folder, filters in rules.items():
                 # Check every filter in the order
-                for filter_ in filters:  # filter already exist
+                for filter_ in filters:  # filter variable already exists
                     # For this filter, check if at least one param matches
+                    filter_name = list(filter_.keys())[0]
                     for param in params:
-                        if filter_.lower() in param.lower():
+                        if filter_name.lower() in param.lower():
+                            folder_to_move = None
+
+                            # Filter matches, check its actions
+                            if "move" in filter_[filter_name]:
+                                folder_to_move = folder
+
                             self.config.logger.debug(
                                 "Got a match for category=%s param=%s folder=%s",
                                 category_name,
                                 param,
-                                folder,
+                                folder_to_move,
                             )
-                            return folder, True
+                            return True, folder_to_move
 
-        return None, False
+        return False, None
 
     def _unsafe_process_one_email(self, raw_email, mail_subject):
         # pylint: disable=too-many-branches
@@ -252,8 +257,7 @@ class Imap:
 
         # Check if the mail has a 'subject' rule
         if mail_subject:
-            mail_subject = decode_subject(mail_subject)
-            folder_name, used = self._analyse_filters_for_category(
+            used, folder_name = self._analyse_filters_for_category(
                 SECTION_SUBJECT_NAME, IMAP_SUBJECT, [mail_subject]
             )
             if used:
@@ -261,13 +265,14 @@ class Imap:
 
         # Check if the mail has a 'from' rule (only if no rules applied yet)
         mail_from = raw_email[IMAP_FROM]
-        self.logger.debug('field from="%s"', mail_from)
+        self.logger.debug('raw field from="%s"', mail_from)
         mail_from = extract_and_sanitize_mail_addresses(mail_from)
+        # The list can be empty after <extract_and_sanitize_mail_addresses>
         if mail_from:
             # We don't want to deal with multiple senders
             mail_from = mail_from[0]
-            if not folder_name:
-                folder_name, used = self._analyse_filters_for_category(
+            if not rule_used:
+                used, folder_name = self._analyse_filters_for_category(
                     SECTION_FROM_NAME, IMAP_FROM, [mail_from]
                 )
                 if used:
@@ -275,16 +280,13 @@ class Imap:
 
         # Check if the mail has a 'to' rule (only if no rules applied yet)
         mail_to = raw_email[IMAP_TO]
-        self.logger.debug('field to="%s"', mail_to)
+        self.logger.debug('raw field to="%s"', mail_to)
         mail_to = extract_and_sanitize_mail_addresses(mail_to)
-        # Init mail_dest with first mail found
-        # (init in case a previous rule applied)
+        # The list can be empty after <extract_and_sanitize_mail_addresses>
         if mail_to:
-            # Init mail_dest with first mail found
-            # (init in case a previous rule applied)
             mail_dest = mail_dest + mail_to
-            if not folder_name:
-                folder_name, used = self._analyse_filters_for_category(
+            if not rule_used:
+                used, folder_name = self._analyse_filters_for_category(
                     SECTION_DEST_NAME, IMAP_TO, mail_to
                 )
                 if used:
@@ -293,18 +295,17 @@ class Imap:
         # Check if the mail has a 'cc' rule (only if no rules applied yet)
         # The values checked for the 'cc' rules are the ones of the 'to' rules
         mail_cc = raw_email[IMAP_CC]
-        self.logger.debug('field cc="%s"', mail_cc)
+        self.logger.debug('raw field cc="%s"', mail_cc)
+        mail_cc = extract_and_sanitize_mail_addresses(mail_cc)
+        # The list can be empty after <extract_and_sanitize_mail_addresses>
         if mail_cc:
-            mail_cc = extract_and_sanitize_mail_addresses(mail_cc)
-            # The list can be empty after <extract_and_sanitize_mail_addresses>
-            if mail_cc:
-                mail_dest = mail_dest + mail_cc
-                if not folder_name:
-                    folder_name, used = self._analyse_filters_for_category(
-                        SECTION_DEST_NAME, IMAP_CC, mail_cc
-                    )
-                if used:
-                    rule_used = IMAP_CC
+            mail_dest = mail_dest + mail_cc
+            if not rule_used:
+                used, folder_name = self._analyse_filters_for_category(
+                    SECTION_DEST_NAME, IMAP_CC, mail_cc
+                )
+            if used:
+                rule_used = IMAP_CC
 
         # If we still don't have a rule for the mail, take the default folder
         if not folder_name:

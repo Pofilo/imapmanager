@@ -52,6 +52,9 @@ def decode_subject(subject):
     """
     Credits: https://stackoverflow.com/a/43393449
     """
+    if not subject:
+        return None
+
     pattern = re.compile(
         r"(([^=]*)=\?([^\?]*)\?([BbQq])\?([^\?]*)\?=([^=]*))", re.IGNORECASE
     )
