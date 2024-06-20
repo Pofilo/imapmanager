@@ -26,7 +26,6 @@ from time import sleep
 from imapmanager.constants import (
     LOG_LEVEL_NAME,
     POLLING_INTERVAL_NAME,
-    SECTION_GENERAL_NAME,
 )
 from imapmanager.conf import ImapConf
 from imapmanager.imap import Imap
@@ -59,13 +58,13 @@ def main():
     # INIT
     signal(SIGINT, signal_handler)
     signal(SIGTERM, signal_handler)
-    config = ImapConf(logger)
-    log_level = logging.getLevelName(config.get(SECTION_GENERAL_NAME, LOG_LEVEL_NAME))
+    config = ImapConf(logger=logger)
+    log_level = logging.getLevelName(config.get(LOG_LEVEL_NAME))
     logger.setLevel(log_level)
 
     imap = Imap(logger, config)
 
-    polling_interval = config.get(SECTION_GENERAL_NAME, POLLING_INTERVAL_NAME)
+    polling_interval = config.get(POLLING_INTERVAL_NAME)
 
     # MAIN LOOP
     while running:

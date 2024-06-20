@@ -21,7 +21,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "configparser==7.0.0",
+    "PyYAML==6.0.1",
 ]
 
 # $ pip install .[dev]

@@ -20,6 +20,7 @@ import email
 from imaplib import IMAP4_SSL
 from logging import Logger
 import sys
+from typing import List
 
 from imapmanager.conf import ImapConf
 from imapmanager.constants import (
@@ -33,9 +34,9 @@ from imapmanager.constants import (
     MAILBOX_NAME,
     PASSWORD_NAME,
     PORT_NAME,
+    SECTION_FILTERS_NAME,
     SECTION_FROM_NAME,
     SECTION_DEST_NAME,
-    SECTION_GENERAL_NAME,
     SECTION_SUBJECT_NAME,
     USERNAME_NAME,
 )
@@ -43,36 +44,40 @@ from imapmanager.utils import decode_subject, extract_and_sanitize_mail_addresse
 
 
 # TODO: this function is not understandable
-def _check_rule_for_params(config, rule, rule_name, params):
+def _analyse_filters_for_category(
+    config: ImapConf,
+    category: str,
+    category_name: str,
+    params: List[str],
+):
     """
-    Check if one over each params is matching the given rule.
-    If there is a match, the folder and the param are returned.
+    Check if one over each params is matching the given category.
+    If there is a match, the folder and True are returned.
     The function stop searching after a first match.
     :param      config      the configuration where to get the info from
-    :param      rule        the configuration section corresponding to the rule to check
-                            (SUBJECT, FROM, DEST, ...)
-    :param      rule_name   the name of the rule (subject, from, to, cc, ...)
+    :param      category        the configuration section corresponding to the category
+                                to check (SUBJECT, FROM, DEST, ...)
+    :param      category_name   the name of the category (subject, from, to, cc, ...)
     :param      params      the values to check if one is present in the rule
     :return     folder      the folder name, an empty string otherwise
     :return     used        True if the rule was matching something, False otherwise
     """
-    folder = None
-    # Check if the mail has a rule
-    for argument, value in list(config._config.items(rule)):
-        # Remove the quotes
-        argument = argument[1:-1]
-        for param in params:
-            if argument.lower() in param.lower():
-                folder = value
-                config.logger.debug(
-                    "Got a match for rule=%s param=%s folder=%s",
-                    rule_name,
-                    param,
-                    folder,
-                )
-                return folder, True
+    rules = config[SECTION_FILTERS_NAME].get(category)
+    if rules:
+        for folder, filters in rules.items():
+            # filters are all the values in conf to check
+            for filter in filters:
+                for param in params:
+                    if filter.lower() in param.lower():
+                        config.logger.debug(
+                            "Got a match for category=%s param=%s folder=%s",
+                            category_name,
+                            param,
+                            folder,
+                        )
+                        return folder, True
 
-    return folder, False
+    return None, False
 
 
 class Imap:
@@ -82,14 +87,12 @@ class Imap:
         config: ImapConf,
     ) -> None:
         self.logger = logger
-        self._hostname = config.get(SECTION_GENERAL_NAME, HOSTNAME_NAME)
-        self._port = config.get(SECTION_GENERAL_NAME, PORT_NAME)
-        self._username = config.get(SECTION_GENERAL_NAME, USERNAME_NAME)
-        self._password = config.get(SECTION_GENERAL_NAME, PASSWORD_NAME)
-        self._mailbox = config.get(SECTION_GENERAL_NAME, MAILBOX_NAME)
-        self._default_destination_folder = config.get(
-            SECTION_GENERAL_NAME, IMAP_DEFAULT_FOLDER_NAME
-        )
+        self._hostname = config.get(HOSTNAME_NAME)
+        self._port = config.get(PORT_NAME)
+        self._username = config.get(USERNAME_NAME)
+        self._password = config.get(PASSWORD_NAME)
+        self._mailbox = config.get(MAILBOX_NAME)
+        self._default_destination_folder = config.get(IMAP_DEFAULT_FOLDER_NAME)
         self._handler: IMAP4_SSL = None
         self.config = config
 
@@ -135,9 +138,9 @@ class Imap:
     def _check_folder_exist_on_server(self, folder_name) -> bool:
         """
         This function check that the given folder exists on the server.
-        Folder on the server looks like:
-            (\HasNoChildren) "." "INBOX.spam"  # noqa: W605
-            (\HasNoChildren) "." INBOX.spam  # noqa: W605
+        Folder on the server looks like (with a baskslash removed):
+            (\\HasNoChildren) "." "INBOX.spam"
+            (\\HasNoChildren) "." INBOX.spam
         :param      folder_name         the name of the folder to check
         :return                         True if the folder exists, False otherwise.
         """
@@ -157,7 +160,7 @@ class Imap:
             # Connection failure, try again later...
             return
 
-        mailbox = self.config.get(SECTION_GENERAL_NAME, MAILBOX_NAME)
+        mailbox = self.config.get(MAILBOX_NAME)
 
         try:
             # Go into the mailbox
@@ -200,23 +203,23 @@ class Imap:
             except Exception as exc:
                 folder_name = self._default_destination_folder
                 self.logger.exception(
-                    "Error processing an email, moving it into folder=%s err=%s",
+                    'Error processing an email, moving it into folder="%s" err=%s',
                     folder_name,
                     exc,
-                )               
+                )
 
             # Check if the folder exists on the server
             if not self._check_folder_exist_on_server(folder_name):
                 self.logger.warning(
-                    "folder=%s does not exist on the server, moving the mail "
-                    "into the default folder=%s",
+                    'folder="%s" does not exist on the server, moving the mail '
+                    'into the default folder="%s"',
                     folder_name,
                     self._default_destination_folder,
                 )
                 folder_name = self._default_destination_folder
                 if not self._check_folder_exist_on_server(folder_name):
                     self.logger.critical(
-                        "default folder=%s does not exist on the server, "
+                        'default folder="%s" does not exist on the server, '
                         "please fix the configuration, exiting..",
                         folder_name,
                     )
@@ -226,7 +229,7 @@ class Imap:
             result = self._handler.copy(num, folder_name)
             if result[0] != "OK":
                 self.logger.critical(
-                    "Mail with subject=%s not copied to folder=%s, exiting...",
+                    'Mail with subject="%s" not copied to folder="%s", exiting...',
                     mail_subject,
                     folder_name,
                 )
@@ -246,7 +249,7 @@ class Imap:
         # Check if the mail has a 'subject' rule
         if mail_subject:
             mail_subject = decode_subject(mail_subject)
-            folder_name, used = _check_rule_for_params(
+            folder_name, used = _analyse_filters_for_category(
                 self.config, SECTION_SUBJECT_NAME, IMAP_SUBJECT, [mail_subject]
             )
             if used:
@@ -254,13 +257,13 @@ class Imap:
 
         # Check if the mail has a 'from' rule (only if no rules applied yet)
         mail_from = raw_email[IMAP_FROM]
-        self.logger.debug("field from=%s", mail_from)
+        self.logger.debug('field from="%s"', mail_from)
         mail_from = extract_and_sanitize_mail_addresses(mail_from)
         if mail_from:
             # We don't want to deal with multiple senders
             mail_from = mail_from[0]
             if not folder_name:
-                folder_name, used = _check_rule_for_params(
+                folder_name, used = _analyse_filters_for_category(
                     self.config, SECTION_FROM_NAME, IMAP_FROM, [mail_from]
                 )
                 if used:
@@ -268,7 +271,7 @@ class Imap:
 
         # Check if the mail has a 'to' rule (only if no rules applied yet)
         mail_to = raw_email[IMAP_TO]
-        self.logger.debug("field to=%s", mail_to)
+        self.logger.debug('field to="%s"', mail_to)
         mail_to = extract_and_sanitize_mail_addresses(mail_to)
         # Init mail_dest with first mail found
         # (init in case a previous rule applied)
@@ -277,7 +280,7 @@ class Imap:
             # (init in case a previous rule applied)
             mail_dest = mail_dest + mail_to
             if not folder_name:
-                folder_name, used = _check_rule_for_params(
+                folder_name, used = _analyse_filters_for_category(
                     self.config, SECTION_DEST_NAME, IMAP_TO, mail_to
                 )
                 if used:
@@ -286,14 +289,14 @@ class Imap:
         # Check if the mail has a 'cc' rule (only if no rules applied yet)
         # The values checked for the 'cc' rules are the ones of the 'to' rules
         mail_cc = raw_email[IMAP_CC]
-        self.logger.debug("field cc=%s", mail_cc)
+        self.logger.debug('field cc="%s"', mail_cc)
         if mail_cc:
             mail_cc = extract_and_sanitize_mail_addresses(mail_cc)
             # The list can be empty after <extract_and_sanitize_mail_addresses>
             if mail_cc:
                 mail_dest = mail_dest + mail_cc
                 if not folder_name:
-                    folder_name, used = _check_rule_for_params(
+                    folder_name, used = _analyse_filters_for_category(
                         self.config, SECTION_DEST_NAME, IMAP_CC, mail_cc
                     )
                 if used:
@@ -301,13 +304,12 @@ class Imap:
 
         # If we still don't have a rule for the mail, take the default folder
         if not folder_name:
-            self.logger.debug(
-                "No rule for the mail, moving it into the default folder"
-            )
+            self.logger.debug("No rule for the mail, moving it into the default folder")
             folder_name = self._default_destination_folder
 
         self.logger.info(
-            "GET mail subject=\"%s\" from=%s dest=%s to be moved into %s (rule=%s)",
+            'GET mail subject="%s" from="%s" dest="%s" to be moved into "%s" '
+            "(rule=%s)",
             mail_subject,
             mail_from,
             mail_dest,

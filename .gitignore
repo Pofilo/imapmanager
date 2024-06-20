@@ -65,4 +65,5 @@ docs/_build/
 target/
 
 *imapmanager.conf
+*imapmanager.conf.yml
 *.code-workspace

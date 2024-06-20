@@ -16,10 +16,13 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
-import configparser
+from collections import UserDict
+from copy import deepcopy
+from json import dumps
 from logging import Logger
 from os import getenv, path
-from sys import exit
+from sys import exit as sys_exit
+from yaml import load, SafeLoader
 
 from imapmanager.constants import (
     CONFIG_PATH_NAME,
@@ -31,24 +34,23 @@ from imapmanager.constants import (
     PASSWORD_NAME,
     POLLING_INTERVAL_NAME,
     PORT_NAME,
-    SECTION_DEST_NAME,
-    SECTION_FROM_NAME,
-    SECTION_GENERAL_NAME,
-    SECTION_SUBJECT_NAME,
+    SECTION_FILTERS_NAME,
     USERNAME_NAME,
 )
 
 
-class ImapConf:
-    def __init__(self, logger: Logger) -> None:
+class ImapConf(UserDict):
+    """
+    Class loading the conf file as yaml and exposing the conf as a dict.
+    """
+
+    def __init__(self, logger: Logger, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
         self.logger = logger
         self._config_path = None
-        self._config = None
 
         # Open and load config file
         self._open_and_load_config()
-        # Check if config is valid
-        self._check_config()
 
     def _open_and_load_config(self):
         """
@@ -58,19 +60,25 @@ class ImapConf:
         self._config_path = getenv(CONFIG_PATH_NAME, DEFAULT_CONFIG_PATH)
 
         if path.isfile(self._config_path):
-            self._config = configparser.ConfigParser()
             try:
-                self._config.read(self._config_path)
-            except configparser.ParsingError as exc:
-                self.logger.exception("Parsing while reading conf: exc=%s", exc)
-                exit(1)
+                with open(self._config_path, "r", encoding="UTF-8") as file_fd:
+                    self.data = load(file_fd, Loader=SafeLoader)
+                    # Check if config is valid
+                    self._check_config()
+                    if self.data.get(LOG_LEVEL_NAME) == "DEBUG":
+                        conf = deepcopy(self.data)
+                        conf[PASSWORD_NAME] = "*****"
+                        self.logger.debug("conf used:\n%s", dumps(conf, indent=2))
+            except Exception as exc:
+                self.logger.error("Parsing while reading conf: exc=%s", exc)
+                sys_exit(1)
         else:
             self.logger.critical(
                 "config_file=%s not found, or set the env variable %s accordingly",
                 self._config_path,
                 CONFIG_PATH_NAME,
             )
-            exit(1)
+            sys_exit(1)
 
     def _check_config(self):
         """
@@ -78,47 +86,24 @@ class ImapConf:
         (aka contains all mandatory fields).
         """
 
-        # TODO: better use a map/array of the mandatory section/keys rather than
-        # calling each one individually
-
-        # Check all section exist
-        self._check_config_section(SECTION_GENERAL_NAME)
-        self._check_config_section(SECTION_SUBJECT_NAME)
-        self._check_config_section(SECTION_FROM_NAME)
-        self._check_config_section(SECTION_DEST_NAME)
-
         # Check all mandatories keys
-        self._check_config_key(SECTION_GENERAL_NAME, HOSTNAME_NAME)
-        self._check_config_key(SECTION_GENERAL_NAME, PORT_NAME)
-        self._check_config_key(SECTION_GENERAL_NAME, USERNAME_NAME)
-        self._check_config_key(SECTION_GENERAL_NAME, PASSWORD_NAME)
-        self._check_config_key(SECTION_GENERAL_NAME, MAILBOX_NAME)
-        self._check_config_key(SECTION_GENERAL_NAME, POLLING_INTERVAL_NAME)
-        self._check_config_key(SECTION_GENERAL_NAME, IMAP_DEFAULT_FOLDER_NAME)
-        self._check_config_key(SECTION_GENERAL_NAME, LOG_LEVEL_NAME)
+        self._check_config_key(SECTION_FILTERS_NAME)
 
-    def _check_config_section(self, section):
-        """
-        Check that the given section exists in the configuration.
-        :param      section     the section to check
-        Log and exit if the section is not found.
-        """
-        if not self._config.has_section(section):
-            self.logger.critical("section=%s not found in config file", section)
-            exit(1)
+        self._check_config_key(HOSTNAME_NAME)
+        self._check_config_key(PORT_NAME)
+        self._check_config_key(USERNAME_NAME)
+        self._check_config_key(PASSWORD_NAME)
+        self._check_config_key(MAILBOX_NAME)
+        self._check_config_key(POLLING_INTERVAL_NAME)
+        self._check_config_key(IMAP_DEFAULT_FOLDER_NAME)
+        self._check_config_key(LOG_LEVEL_NAME)
 
-    def _check_config_key(self, section, key):
+    def _check_config_key(self, key):
         """
-        Check that the given key exists in the given section of the configuration.
-        :param      section     the section to check
+        Check that the given key exists in the configuration.
         :param      key         the key to check
         Log and exit if the key (or the section) is not found.
         """
-        if not self._config.has_option(section, key):
-            self.logger.critical(
-                "key=%s not found in section=%s in config file", key, section
-            )
-            exit(1)
-
-    def get(self, section, key):
-        return self._config.get(section, key)
+        if not self.data.get(key):
+            self.logger.critical("key=%s not found in config file", key)
+            sys_exit(1)

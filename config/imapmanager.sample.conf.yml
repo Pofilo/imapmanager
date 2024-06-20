@@ -1,5 +1,5 @@
 #
-# imapmanager.conf.sample: imapmanager default configuration file.
+# imapmanager.sample.conf.yml: imapmanager default configuration file.
 #
 # imapmanager: Connect and manage your mail account through IMAP.
 # Copyright (C) pofilo <git@pofilo.fr>
@@ -15,26 +15,22 @@
 #########################
 #        GENERAL        #
 #########################
-[GENERAL]
-IMAP_HOSTNAME = imap.domain.com
+hostname: imap.domain.com
 # Default port for SSL is 993
-IMAP_PORT = 993
-IMAP_USERNAME = example@domain.fr
-# % in passwords needs to be escaped by another %
-# "% is the only character that needs to be escaped"
-# https://docs.python.org/3/library/configparser.html#configparser.BasicInterpolation
-IMAP_PASSWORD = azerty
+port: 993
+username: example@domain.fr
+password: azerty
 # The IMAP folder where imapmanager will process unread mails.
-IMAP_MAILBOX = INBOX
+mailbox: INBOX
 # Polling interval in seconds (aka the time between the end of a cycle and the start of the next one)
 # For example if the process takes 3 seconds, the next one will be
 # 13 seconds after the start of it.
-POLLING_INTERVAL = 10
+pollingInterval: 10
 # If a mail has no rule (no subject nor from nor to rules),
 # it will be moved in this one.
-DEFAULT_FOLDER = INBOX.others
+defaulFolder: INBOX.others
 # FATAL, ERROR, WARN, INFO, DEBUG
-LOG_LEVEL = INFO
+logLevel: INFO
 
 #########################
 #        FILTERS        #
@@ -42,19 +38,24 @@ LOG_LEVEL = INFO
 # Filters are divided in 3 categories.
 # First, the 'subject' will be analyzed, then the 'from' and the 'to'/'cc' fields (represented by the 'DEST' category).
 # Each category is working in the same way:
-#   - the key represents the filter
-#   - the value represents the folder where the mail needs to be moved
-# A mail will be moved if the content of the key (between quotes) is part of the field of the mail.
+#   - the key represents the folden name
+#   - the values represent the filters to analyse
+# A mail will be moved if the one filter (between quotes) is part of the field of the mail.
 #
 
-[SUBJECT]
-"[SPAM]" = INBOX.spamFolder
-"*** SPAM ***" = INBOX.spamFolder
+filters:
+  subject:
+    INBOX.spamFolder:
+      - "[SPAM]"
+      - "*** SPAM ***"
 
-[FROM]
-"mail1@domain.com" = INBOX.folder1
+  from:
+    INBOX.folder1:
+      - "mail1@domain.com"
 
-[DEST]
-"mail1@domain1.com" = INBOX.folder1
-"mail2@domain1.com" = INBOX.example folder with spaces
+  dest:
+    INBOX.folder1:
+      - "mail1@domain1.com"
+    INBOX.example folder with spaces:
+      - "mail2@domain1.com"
 
