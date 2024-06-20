@@ -54,8 +54,9 @@ def _check_rule_for_params(config, rule, rule_name, params):
     :param      rule_name   the name of the rule (subject, from, to, cc, ...)
     :param      params      the values to check if one is present in the rule
     :return     folder      the folder name, an empty string otherwise
+    :return     used        True if the rule was matching something, False otherwise
     """
-    folder = ""
+    folder = None
     # Check if the mail has a rule
     for argument, value in list(config._config.items(rule)):
         # Remove the quotes
@@ -69,9 +70,9 @@ def _check_rule_for_params(config, rule, rule_name, params):
                     param,
                     folder,
                 )
-                return folder
+                return folder, True
 
-    return folder
+    return folder, False
 
 
 class Imap:
@@ -182,86 +183,27 @@ class Imap:
         for num in data[0].split():
             num = str(int(num) - count)
             # The name of the folder where the current mail will be moved
-            folder_name = ""
+            folder_name = None
 
-            # This try-except seems to only be usefull if the message_from_bytes() fails
+            # Fetch and process mail
             try:
                 # See the mail without changing his unread flag
                 _typ, data = self._handler.fetch(num, "(BODY.PEEK[])")
                 # data[0][1] is the raw email
                 raw_email = email.message_from_bytes(data[0][1])
 
-                mail_dest = []
-                # Check if the mail has a 'subject' rule
-                subject = raw_email[IMAP_SUBJECT]
-                if subject:
-                    subject = decode_subject(subject)
-                    folder_name = _check_rule_for_params(
-                        self.config, SECTION_SUBJECT_NAME, IMAP_SUBJECT, [subject]
-                    )
+                mail_subject = raw_email[IMAP_SUBJECT]
+                if mail_subject:
+                    mail_subject = decode_subject(mail_subject)
 
-                # Check if the mail has a 'from' rule (only if no rules applied yet)
-                mail_from = raw_email[IMAP_FROM]
-                self.logger.debug("field from=%s", mail_from)
-                mail_from = extract_and_sanitize_mail_addresses(mail_from)
-                if mail_from:
-                    # We don't want to deal with multiple senders
-                    mail_from = mail_from[0]
-                    if not folder_name:
-                        folder_name = _check_rule_for_params(
-                            self.config, SECTION_FROM_NAME, IMAP_FROM, [mail_from]
-                        )
-
-                # Check if the mail has a 'to' rule (only if no rules applied yet)
-                mail_to = raw_email[IMAP_TO]
-                self.logger.debug("field to=%s", mail_to)
-                mail_to = extract_and_sanitize_mail_addresses(mail_to)
-                # Init mail_dest with first mail found
-                # (init in case a previous rule applied)
-                if mail_to:
-                    # Init mail_dest with first mail found
-                    # (init in case a previous rule applied)
-                    mail_dest = mail_dest + mail_to
-                    if not folder_name:
-                        folder_name = _check_rule_for_params(
-                            self.config, SECTION_DEST_NAME, IMAP_TO, mail_to
-                        )
-
-                # Check if the mail has a 'cc' rule (only if no rules applied yet)
-                # The values checked for the 'cc' rules are the ones of the 'to' rules
-                mail_cc = raw_email[IMAP_CC]
-                self.logger.debug("field cc=%s", mail_cc)
-                if mail_cc:
-                    mail_cc = extract_and_sanitize_mail_addresses(mail_cc)
-                    # The list can be empty after <extract_and_sanitize_mail_addresses>
-                    if mail_cc:
-                        mail_dest = mail_dest + mail_cc
-                        if not folder_name:
-                            folder_name = _check_rule_for_params(
-                                self.config, SECTION_DEST_NAME, IMAP_CC, mail_cc
-                            )
-
-                # If we still don't have a rule for the mail, take the default folder
-                if not folder_name:
-                    self.logger.debug(
-                        "No rule for the mail, moving it into the default folder"
-                    )
-                    folder_name = self._default_destination_folder
-
-                self.logger.info(
-                    "GET mail subject=%s from=%s dest=%s to be moved into folder=%s",
-                    subject,
-                    mail_from,
-                    mail_dest,
-                    folder_name,
-                )
+                folder_name = self._unsafe_process_one_email(raw_email, mail_subject)
             except Exception as exc:
                 folder_name = self._default_destination_folder
                 self.logger.exception(
                     "Error processing an email, moving it into folder=%s err=%s",
                     folder_name,
                     exc,
-                )
+                )               
 
             # Check if the folder exists on the server
             if not self._check_folder_exist_on_server(folder_name):
@@ -280,21 +222,99 @@ class Imap:
                     )
                     sys.exit(1)
 
-            # We copy the mail into the folder
+            # Copy the mail into the folder
             result = self._handler.copy(num, folder_name)
             if result[0] != "OK":
                 self.logger.critical(
                     "Mail with subject=%s not copied to folder=%s, exiting...",
-                    subject,
+                    mail_subject,
                     folder_name,
                 )
                 sys.exit(1)
-            # We delete the original mail
+            # Delete the original mail
             _typ, data = self._handler.store(num, "+FLAGS", "\\Deleted")
             self._handler.expunge()
 
             # Update counter
             count += 1
+
+    def _unsafe_process_one_email(self, raw_email, mail_subject):
+        folder_name = None
+        rule_used = None
+        mail_dest = []
+
+        # Check if the mail has a 'subject' rule
+        if mail_subject:
+            mail_subject = decode_subject(mail_subject)
+            folder_name, used = _check_rule_for_params(
+                self.config, SECTION_SUBJECT_NAME, IMAP_SUBJECT, [mail_subject]
+            )
+            if used:
+                rule_used = IMAP_SUBJECT
+
+        # Check if the mail has a 'from' rule (only if no rules applied yet)
+        mail_from = raw_email[IMAP_FROM]
+        self.logger.debug("field from=%s", mail_from)
+        mail_from = extract_and_sanitize_mail_addresses(mail_from)
+        if mail_from:
+            # We don't want to deal with multiple senders
+            mail_from = mail_from[0]
+            if not folder_name:
+                folder_name, used = _check_rule_for_params(
+                    self.config, SECTION_FROM_NAME, IMAP_FROM, [mail_from]
+                )
+                if used:
+                    rule_used = IMAP_FROM
+
+        # Check if the mail has a 'to' rule (only if no rules applied yet)
+        mail_to = raw_email[IMAP_TO]
+        self.logger.debug("field to=%s", mail_to)
+        mail_to = extract_and_sanitize_mail_addresses(mail_to)
+        # Init mail_dest with first mail found
+        # (init in case a previous rule applied)
+        if mail_to:
+            # Init mail_dest with first mail found
+            # (init in case a previous rule applied)
+            mail_dest = mail_dest + mail_to
+            if not folder_name:
+                folder_name, used = _check_rule_for_params(
+                    self.config, SECTION_DEST_NAME, IMAP_TO, mail_to
+                )
+                if used:
+                    rule_used = IMAP_TO
+
+        # Check if the mail has a 'cc' rule (only if no rules applied yet)
+        # The values checked for the 'cc' rules are the ones of the 'to' rules
+        mail_cc = raw_email[IMAP_CC]
+        self.logger.debug("field cc=%s", mail_cc)
+        if mail_cc:
+            mail_cc = extract_and_sanitize_mail_addresses(mail_cc)
+            # The list can be empty after <extract_and_sanitize_mail_addresses>
+            if mail_cc:
+                mail_dest = mail_dest + mail_cc
+                if not folder_name:
+                    folder_name, used = _check_rule_for_params(
+                        self.config, SECTION_DEST_NAME, IMAP_CC, mail_cc
+                    )
+                if used:
+                    rule_used = IMAP_CC
+
+        # If we still don't have a rule for the mail, take the default folder
+        if not folder_name:
+            self.logger.debug(
+                "No rule for the mail, moving it into the default folder"
+            )
+            folder_name = self._default_destination_folder
+
+        self.logger.info(
+            "GET mail subject=\"%s\" from=%s dest=%s to be moved into %s (rule=%s)",
+            mail_subject,
+            mail_from,
+            mail_dest,
+            folder_name,
+            rule_used,
+        )
+        return folder_name
 
     def logout(self) -> None:
         """
