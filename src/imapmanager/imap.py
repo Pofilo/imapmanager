@@ -22,6 +22,8 @@ from logging import Logger
 import sys
 from typing import List
 
+import requests
+
 from imapmanager.conf import ImapConf
 from imapmanager.constants import (
     ENCODING,
@@ -38,6 +40,9 @@ from imapmanager.constants import (
     SECTION_FROM_NAME,
     SECTION_DEST_NAME,
     SECTION_SUBJECT_NAME,
+    SECTION_TELEGRAM_NAME,
+    TELEGRAM_TOKEN_NAME,
+    TELEGRAM_CHAT_ID_NAME,
     USERNAME_NAME,
 )
 from imapmanager.utils import decode_subject, extract_and_sanitize_mail_addresses
@@ -234,10 +239,13 @@ class Imap:
                     for param in params:
                         if filter_name.lower() in param.lower():
                             folder_to_move = None
+                            send_telegram = False
 
                             # Filter matches, check its actions
                             if "move" in filter_[filter_name]:
                                 folder_to_move = folder
+                            if "telegram" in filter_[filter_name]:
+                                send_telegram = True
 
                             self.config.logger.debug(
                                 "Got a match for category=%s param=%s folder=%s",
@@ -245,19 +253,20 @@ class Imap:
                                 param,
                                 folder_to_move,
                             )
-                            return True, folder_to_move
+                            return True, folder_to_move, send_telegram
 
-        return False, None
+        return False, None, False
 
     def _unsafe_process_one_email(self, raw_email, mail_subject):
         # pylint: disable=too-many-branches
         folder_name = None
         rule_used = None
+        send_telegram = False
         mail_dest = []
 
         # Check if the mail has a 'subject' rule
         if mail_subject:
-            used, folder_name = self._analyse_filters_for_category(
+            used, folder_name, send_telegram = self._analyse_filters_for_category(
                 SECTION_SUBJECT_NAME, IMAP_SUBJECT, [mail_subject]
             )
             if used:
@@ -272,7 +281,7 @@ class Imap:
             # We don't want to deal with multiple senders
             mail_from = mail_from[0]
             if not rule_used:
-                used, folder_name = self._analyse_filters_for_category(
+                used, folder_name, send_telegram = self._analyse_filters_for_category(
                     SECTION_FROM_NAME, IMAP_FROM, [mail_from]
                 )
                 if used:
@@ -286,7 +295,7 @@ class Imap:
         if mail_to:
             mail_dest = mail_dest + mail_to
             if not rule_used:
-                used, folder_name = self._analyse_filters_for_category(
+                used, folder_name, send_telegram = self._analyse_filters_for_category(
                     SECTION_DEST_NAME, IMAP_TO, mail_to
                 )
                 if used:
@@ -301,7 +310,7 @@ class Imap:
         if mail_cc:
             mail_dest = mail_dest + mail_cc
             if not rule_used:
-                used, folder_name = self._analyse_filters_for_category(
+                used, folder_name, send_telegram = self._analyse_filters_for_category(
                     SECTION_DEST_NAME, IMAP_CC, mail_cc
                 )
             if used:
@@ -314,14 +323,40 @@ class Imap:
 
         self.logger.info(
             'GET mail subject="%s" from="%s" dest="%s" to be moved into "%s" '
-            "(rule=%s)",
+            "(telegram=%s rule=%s)",
             mail_subject,
             mail_from,
             mail_dest,
             folder_name,
+            send_telegram,
             rule_used,
         )
+
+        # Send the telegram notification if needed
+        if send_telegram:
+            self._send_telegram_notification(mail_subject, mail_from)
+
         return folder_name
+
+    def _send_telegram_notification(self, mail_subject, mail_from):
+        if self.config.get(SECTION_TELEGRAM_NAME, {}):
+            token = self.config[SECTION_TELEGRAM_NAME][TELEGRAM_TOKEN_NAME]
+            chat_id = self.config[SECTION_TELEGRAM_NAME][TELEGRAM_CHAT_ID_NAME]
+            try:
+                message = f'GET mail subject="{mail_subject}" from="{mail_from}"'
+                url = (
+                    f"https://api.telegram.org/bot{token}/sendMessage?"
+                    f"chat_id={chat_id}&text={message}"
+                )
+                resp = requests.get(url, timeout=5)
+                if resp.status_code != 200:
+                    self.logger.warning(
+                        "Failed to send telegram message, status_code=%s err=%s",
+                        resp.status_code,
+                        resp.text,
+                    )
+            except Exception as exc:
+                self.logger.exception("Failed to send telegram message: err=%s", exc)
 
     def logout(self) -> None:
         """

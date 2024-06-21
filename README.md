@@ -20,6 +20,10 @@ The first objective is to **automatically sort your mails** into the desired fol
 If a mail match with a filter, some actions can be done.
 List of supported actions:
 - `move`: move the mail into the desired folder (this action is mandatory)
+- `telegram`: send a telegram notification (this action is optional)
+
+Note that the telegram notification requires to setup a token and chat_id.
+You can [find here](https://git.pofilo.fr/pofilo/imapmanager/src/branch/master/doc/notice-telegram.md) the documentation helping you to set up the telegram configuration.
 
 ## Installation
 

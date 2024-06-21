@@ -68,4 +68,12 @@ filters:
       - "mail1@domain1.com": [move]
     INBOX.example folder with spaces:
       - "mail2@domain1.com": [move]
+      # - "mail2@domain2.com": [move, telegram]
 
+#########################
+#        TELEGRAM       #
+#########################
+# Add the telegram token and chat_id if needed.
+# telegram:
+#   token: xx:yy"
+#   chat_id: "abc"

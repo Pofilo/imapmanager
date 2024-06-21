@@ -35,6 +35,9 @@ from imapmanager.constants import (
     POLLING_INTERVAL_NAME,
     PORT_NAME,
     SECTION_FILTERS_NAME,
+    SECTION_TELEGRAM_NAME,
+    TELEGRAM_CHAT_ID_NAME,
+    TELEGRAM_TOKEN_NAME,
     USERNAME_NAME,
 )
 
@@ -68,6 +71,9 @@ class ImapConf(UserDict):
                     if self.data.get(LOG_LEVEL_NAME) == "DEBUG":
                         conf = deepcopy(self.data)
                         conf[PASSWORD_NAME] = "*****"
+                        if conf.get(SECTION_TELEGRAM_NAME):
+                            conf[SECTION_TELEGRAM_NAME][TELEGRAM_TOKEN_NAME] = "*****"
+                            conf[SECTION_TELEGRAM_NAME][TELEGRAM_CHAT_ID_NAME] = "*****"
                         self.logger.debug("conf used:\n%s", dumps(conf, indent=2))
             except Exception as exc:
                 self.logger.error("Parsing while reading conf: exc=%s", exc)
