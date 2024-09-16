@@ -58,6 +58,8 @@ filters:
     INBOX.spamFolder:
       - "[SPAM]": [move]
       - "*** SPAM ***": [move]
+      # Also works with UTF-8
+      - "Сοոոесt аոⅾ Ꮯⅼаіⅿ": [move]
 
   from:
     INBOX.folder1:
@@ -75,5 +77,5 @@ filters:
 #########################
 # Add the telegram token and chat_id if needed.
 # telegram:
-#   token: xx:yy"
+#   token: "xx:yy"
 #   chat_id: "abc"

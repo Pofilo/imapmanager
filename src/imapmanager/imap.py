@@ -348,6 +348,7 @@ class Imap:
                     f"https://api.telegram.org/bot{token}/sendMessage?"
                     f"chat_id={chat_id}&text={message}"
                 )
+                # TODO: this produces debug logs
                 resp = requests.get(url, timeout=5)
                 if resp.status_code != 200:
                     self.logger.warning(
