@@ -10,19 +10,20 @@ Connect and manage your emails through IMAP over SSL.
 
 ## Purpose
 
-The first objective is to **automatically sort your mails** into the desired folder. You can add optional rules on those fields, for now:
+The first objective is to **automatically sort your mail** into the desired folder. You can add optional rules on those fields, for now:
 - **subject**
 - **from**
 - **dest** (including **to** and **cc**)
 
 ## Actions
 
-If a mail match with a filter, some actions can be done.
+If a mail matches with a filter, some actions can be taken.
 List of supported actions:
 - `move`: move the mail into the desired folder (this action is mandatory)
 - `telegram`: send a telegram notification (this action is optional)
+- `mark_as_read`: mark the mail as already read (this action is optional)
 
-Note that the telegram notification requires to setup a token and chat_id.
+Note that the telegram notification requires setting up a token and chat_id.
 You can [find here](https://git.pofilo.fr/pofilo/imapmanager/src/branch/master/doc/notice-telegram.md) the documentation helping you to set up the telegram configuration.
 
 ## Installation
@@ -68,4 +69,4 @@ This project is licensed under the GNU GPL License. See the [LICENSE](https://gi
 
 ## Bugs
 
-If you experience an issue, you have other ideas for the development, or anything else, feel free to [report it](https://git.pofilo.fr/pofilo/imapmanager/issues) or [fix it with a PR](https://git.pofilo.fr/pofilo/imapmanager/pulls)!
+If you experience an issue, have other ideas for the development, or anything else, feel free to [report it](https://git.pofilo.fr/pofilo/imapmanager/issues) or [fix it with a PR](https://git.pofilo.fr/pofilo/imapmanager/pulls)!

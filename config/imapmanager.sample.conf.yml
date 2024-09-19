@@ -56,10 +56,10 @@ logLevel: INFO
 filters:
   subject:
     INBOX.spamFolder:
-      - "[SPAM]": [move]
-      - "*** SPAM ***": [move]
+      - "[SPAM]": [move, mark_as_read]
+      - "*** SPAM ***": [move, mark_as_read]
       # Also works with UTF-8
-      - "Сοոոесt аոⅾ Ꮯⅼаіⅿ": [move]
+      - "Сοոոесt аոⅾ Ꮯⅼаіⅿ": [move, mark_as_read]
 
   from:
     INBOX.folder1:

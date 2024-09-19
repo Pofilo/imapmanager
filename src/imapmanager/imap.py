@@ -20,7 +20,7 @@ import email
 from imaplib import IMAP4_SSL
 from logging import Logger
 import sys
-from typing import List
+from typing import List, TypedDict
 
 import requests
 
@@ -46,6 +46,32 @@ from imapmanager.constants import (
     USERNAME_NAME,
 )
 from imapmanager.utils import decode_subject, extract_and_sanitize_mail_addresses
+
+
+class MailActions(TypedDict):
+    """
+    Dict representing all actions to perform after analysing all filters for a given
+    category.
+    """
+    filter_used: bool  # True if a filter matches something
+    folder: str
+    send_telegram: bool
+    mark_as_read: bool
+
+    @classmethod
+    def create(
+        cls,
+        filter_used: bool=False,
+        folder: str=None,
+        send_telegram: bool=False,
+        mark_as_read: bool=False,
+    ):
+        return MailActions(
+            filter_used=filter_used,
+            folder=folder,
+            send_telegram=send_telegram,
+            mark_as_read=mark_as_read,
+        )
 
 
 class Imap:
@@ -160,8 +186,8 @@ class Imap:
         # the mail is supposed to move in the end.
         for num in data[0].split():
             num = str(int(num) - count)
-            # The name of the folder where the current mail will be moved
-            folder_name = None
+
+            mail_actions = MailActions.create()
 
             # Fetch and process mail
             try:
@@ -179,40 +205,53 @@ class Imap:
 
                 mail_subject = decode_subject(raw_email[IMAP_SUBJECT])
 
-                folder_name = self._unsafe_process_one_email(raw_email, mail_subject)
+                mail_actions = self._unsafe_process_one_email(raw_email, mail_subject)
             except Exception as exc:
-                folder_name = self._default_destination_folder
+                mail_actions["folder"] = self._default_destination_folder
                 self.logger.exception(
                     'Error processing an email, moving it into folder="%s" err=%s',
-                    folder_name,
+                    mail_actions["folder"],
                     exc,
                 )
 
             # Check if the folder exists on the server
-            if not self._check_folder_exist_on_server(folder_name):
+            if not self._check_folder_exist_on_server(mail_actions["folder"]):
                 self.logger.warning(
                     'folder="%s" does not exist on the server, moving the mail '
                     'into the default folder="%s"',
-                    folder_name,
+                    mail_actions["folder"],
                     self._default_destination_folder,
                 )
-                folder_name = self._default_destination_folder
-                if not self._check_folder_exist_on_server(folder_name):
+                mail_actions["folder"] = self._default_destination_folder
+                if not self._check_folder_exist_on_server(mail_actions["folder"]):
                     self.logger.critical(
                         'default folder="%s" does not exist on the server, '
                         "please fix the configuration, exiting..",
-                        folder_name,
+                        mail_actions["folder"],
                     )
                     sys.exit(1)
 
+            # Mark the mail as read if needed
+            if mail_actions["mark_as_read"]:
+                typ, data = self._handler.store(num, "+FLAGS", "\Seen")
+                if typ != "OK":
+                    self.logger.critical(
+                        'Fail to mark mail with subject="%s" as read (data=%s),',
+                        " exiting...",
+                        mail_subject,
+                        data,
+                    )
+                    sys.exit(1)
+
+
             # Copy the mail into the folder
-            typ, data = self._handler.copy(num, folder_name)
+            typ, data = self._handler.copy(num, mail_actions["folder"])
             if typ != "OK":
                 self.logger.critical(
                     'Mail with subject="%s" not copied to folder="%s" (data=%s)',
                     "exiting...",
                     mail_subject,
-                    folder_name,
+                    mail_actions["folder"],
                     data,
                 )
                 sys.exit(1)
@@ -238,20 +277,21 @@ class Imap:
         category: str,
         category_name: str,
         params: List[str],
-    ):
+    ) -> MailActions:
         """
         Check if at least one param of params is matching the given category by checking
         all its rules and filters.
-        If there is a match, the result is returned.
+        If there is a match, the result is immediately returned.
         The function stop searching after a first match.
         :param      config      the configuration where to get the info from
         :param      category    the configuration section corresponding to the category
                                 to check (SUBJECT, FROM, DEST, ...)
         :param      category_name   the name of the category (subject, from, to, cc, ..)
         :param      params      the values to check if one is present in the rule
-        :return     used        True if the rule was matching something, False otherwise
-        :return     folder      the folder name, an empty string otherwise
+        :return     result      result of type MailActions
         """
+        mail_actions = MailActions.create()
+
         # Get all rules for the category
         rules = self.config[SECTION_FILTERS_NAME].get(category)
         if rules:
@@ -263,38 +303,38 @@ class Imap:
                     filter_name = list(filter_.keys())[0]
                     for param in params:
                         if filter_name.lower() in param.lower():
-                            folder_to_move = None
-                            send_telegram = False
+                            mail_actions["filter_used"] = True
 
                             # Filter matches, check its actions
                             if "move" in filter_[filter_name]:
-                                folder_to_move = folder
+                                mail_actions["folder"] = folder
                             if "telegram" in filter_[filter_name]:
-                                send_telegram = True
+                                mail_actions["send_telegram"] = True
+                            if "mark_as_read" in filter_[filter_name]:
+                                mail_actions["mark_as_read"] = True
 
                             self.config.logger.debug(
                                 "Got a match for category=%s param=%s folder=%s",
                                 category_name,
                                 param,
-                                folder_to_move,
+                                mail_actions["folder"],
                             )
-                            return True, folder_to_move, send_telegram
+                            return mail_actions
 
-        return False, None, False
+        return mail_actions
 
-    def _unsafe_process_one_email(self, raw_email, mail_subject):
+    def _unsafe_process_one_email(self, raw_email, mail_subject) -> MailActions:
         # pylint: disable=too-many-branches
-        folder_name = None
+        mail_actions = MailActions.create()
         rule_used = None
-        send_telegram = False
         mail_dest = []
 
         # Check if the mail has a 'subject' rule
         if mail_subject:
-            used, folder_name, send_telegram = self._analyse_filters_for_category(
+            mail_actions = self._analyse_filters_for_category(
                 SECTION_SUBJECT_NAME, IMAP_SUBJECT, [mail_subject]
             )
-            if used:
+            if mail_actions["filter_used"]:
                 rule_used = IMAP_SUBJECT
 
         # Check if the mail has a 'from' rule (only if no rules applied yet)
@@ -306,10 +346,10 @@ class Imap:
             # We don't want to deal with multiple senders
             mail_from = mail_from[0]
             if not rule_used:
-                used, folder_name, send_telegram = self._analyse_filters_for_category(
+                mail_actions = self._analyse_filters_for_category(
                     SECTION_FROM_NAME, IMAP_FROM, [mail_from]
                 )
-                if used:
+                if mail_actions["filter_used"]:
                     rule_used = IMAP_FROM
 
         # Check if the mail has a 'to' rule (only if no rules applied yet)
@@ -320,10 +360,10 @@ class Imap:
         if mail_to:
             mail_dest = mail_dest + mail_to
             if not rule_used:
-                used, folder_name, send_telegram = self._analyse_filters_for_category(
+                mail_actions = self._analyse_filters_for_category(
                     SECTION_DEST_NAME, IMAP_TO, mail_to
                 )
-                if used:
+                if mail_actions["filter_used"]:
                     rule_used = IMAP_TO
 
         # Check if the mail has a 'cc' rule (only if no rules applied yet)
@@ -335,33 +375,34 @@ class Imap:
         if mail_cc:
             mail_dest = mail_dest + mail_cc
             if not rule_used:
-                used, folder_name, send_telegram = self._analyse_filters_for_category(
+                mail_actions = self._analyse_filters_for_category(
                     SECTION_DEST_NAME, IMAP_CC, mail_cc
                 )
-            if used:
+            if mail_actions["filter_used"]:
                 rule_used = IMAP_CC
-
+            
         # If we still don't have a rule for the mail, take the default folder
-        if not folder_name:
+        if not mail_actions["folder"]:
             self.logger.debug("No rule for the mail, moving it into the default folder")
-            folder_name = self._default_destination_folder
+            mail_actions["folder"] = self._default_destination_folder
 
         self.logger.info(
             'GET mail subject="%s" from="%s" dest="%s" to be moved into "%s" '
-            "(telegram=%s rule=%s)",
+            "(telegram=%s mark_as_read=%s rule=%s)",
             mail_subject,
             mail_from,
             mail_dest,
-            folder_name,
-            send_telegram,
+            mail_actions["folder"],
+            mail_actions["send_telegram"],
+            mail_actions["mark_as_read"],
             rule_used,
         )
 
         # Send the telegram notification if needed
-        if send_telegram:
+        if mail_actions["send_telegram"]:
             self._send_telegram_notification(mail_subject, mail_from)
 
-        return folder_name
+        return mail_actions
 
     def _send_telegram_notification(self, mail_subject, mail_from):
         if self.config.get(SECTION_TELEGRAM_NAME, {}):
