@@ -142,7 +142,13 @@ class Imap:
 
         try:
             # Get the unseen mails of this directory
-            _typ, data = self._handler.search(None, "UNSEEN")
+            typ, data = self._handler.search(None, "UNSEEN")
+            if typ != "OK":
+                self.logger.critical(
+                    'Fail to search for mails (data=%s), exiting...',
+                    data,
+                )
+                sys.exit(1)
         except Exception as exc:
             self.logger.exception("Failed to search: err=%s", exc)
             return
@@ -160,7 +166,14 @@ class Imap:
             # Fetch and process mail
             try:
                 # See the mail without changing his unread flag
-                _typ, data = self._handler.fetch(num, "(BODY.PEEK[])")
+                typ, data = self._handler.fetch(num, "(BODY.PEEK[])")
+                if typ != "OK":
+                    self.logger.critical(
+                        'Fail to fetch mail with num="%d" (data=%s), exiting...',
+                        num,
+                        data,
+                    )
+                    sys.exit(1)
                 # data[0][1] is the raw email
                 raw_email = email.message_from_bytes(data[0][1])
 
@@ -193,16 +206,28 @@ class Imap:
                     sys.exit(1)
 
             # Copy the mail into the folder
-            result = self._handler.copy(num, folder_name)
-            if result[0] != "OK":
+            typ, data = self._handler.copy(num, folder_name)
+            if typ != "OK":
                 self.logger.critical(
-                    'Mail with subject="%s" not copied to folder="%s", exiting...',
+                    'Mail with subject="%s" not copied to folder="%s" (data=%s)',
+                    "exiting...",
                     mail_subject,
                     folder_name,
+                    data,
                 )
                 sys.exit(1)
+
             # Delete the original mail
-            _typ, data = self._handler.store(num, "+FLAGS", "\\Deleted")
+            typ, data = self._handler.store(num, "+FLAGS", "\\Deleted")
+            if typ != "OK":
+                self.logger.critical(
+                    'Fail to delete original mail with subject="%s" (data=%s),',
+                    " exiting...",
+                    mail_subject,
+                    data,
+                )
+                sys.exit(1)
+
             self._handler.expunge()
 
             # Update counter
