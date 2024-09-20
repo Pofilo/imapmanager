@@ -19,7 +19,6 @@ with this program. If not, see <http://www.gnu.org/licenses/>.
 import email
 from imaplib import IMAP4_SSL
 from logging import Logger
-import sys
 from typing import List, TypedDict
 
 import requests
@@ -91,6 +90,7 @@ class Imap:
         self._default_destination_folder = config.get(IMAP_DEFAULT_FOLDER_NAME)
         self._handler: IMAP4_SSL = None
         self.config = config
+        self.running = False
 
         self._connect()
 
@@ -110,10 +110,12 @@ class Imap:
             self._handler.login(self._username, self.config.get(PASSWORD_NAME))
             self.logger.info("Successful connection as username=%s", self._username)
         except Exception as exc:
-            self.logger.exception("Failed to login: err=%s", exc)
-            sys.exit(1)
+            # TODO: maybe some retries could be made
+            self.panic(f"Failed to login: err={exc}")
+            return False
 
         self._handler.select(self.config.get(MAILBOX_NAME))
+        self.running = True
         return True
 
     def _maybe_reconnect(self) -> bool:
@@ -125,6 +127,7 @@ class Imap:
             if self._handler.check():
                 return True
         except Exception as exc:
+            self.running = False
             self.logger.warning(
                 "Check connection failed, trying to reconnect: err=%s",
                 exc,
@@ -170,11 +173,10 @@ class Imap:
             # Get the unseen mails of this directory
             typ, data = self._handler.search(None, "UNSEEN")
             if typ != "OK":
-                self.logger.critical(
-                    'Fail to search for mails (data=%s), exiting...',
-                    data,
+                self.panic(
+                    f"Fail to search for mails (data={data}), exiting..."
                 )
-                sys.exit(1)
+                return
         except Exception as exc:
             self.logger.exception("Failed to search: err=%s", exc)
             return
@@ -194,12 +196,11 @@ class Imap:
                 # See the mail without changing his unread flag
                 typ, data = self._handler.fetch(num, "(BODY.PEEK[])")
                 if typ != "OK":
-                    self.logger.critical(
-                        'Fail to fetch mail with num="%d" (data=%s), exiting...',
-                        num,
-                        data,
+                    self.panic(
+                        f"Fail to fetch mail with num=\"{num}\" (data={data}), "
+                        "exiting..."
                     )
-                    sys.exit(1)
+                    return
                 # data[0][1] is the raw email
                 raw_email = email.message_from_bytes(data[0][1])
 
@@ -224,48 +225,40 @@ class Imap:
                 )
                 mail_actions["folder"] = self._default_destination_folder
                 if not self._check_folder_exist_on_server(mail_actions["folder"]):
-                    self.logger.critical(
-                        'default folder="%s" does not exist on the server, '
-                        "please fix the configuration, exiting..",
-                        mail_actions["folder"],
+                    self.panic(
+                        f"default folder=\"{mail_actions['folder']}\" does not exist "
+                        "on the server, please fix the configuration, exiting..."
                     )
-                    sys.exit(1)
+                    return
 
             # Mark the mail as read if needed
             if mail_actions["mark_as_read"]:
                 typ, data = self._handler.store(num, "+FLAGS", "\Seen")
                 if typ != "OK":
-                    self.logger.critical(
-                        'Fail to mark mail with subject="%s" as read (data=%s),',
-                        " exiting...",
-                        mail_subject,
-                        data,
+                    self.panic(
+                        f"Fail to mark mail with subject=\"{mail_subject}\" as read "
+                        f"(data=%s), exiting..."
                     )
-                    sys.exit(1)
+                    return
 
 
             # Copy the mail into the folder
             typ, data = self._handler.copy(num, mail_actions["folder"])
             if typ != "OK":
-                self.logger.critical(
-                    'Mail with subject="%s" not copied to folder="%s" (data=%s)',
-                    "exiting...",
-                    mail_subject,
-                    mail_actions["folder"],
-                    data,
+                self.panic(
+                    f"Mail with subject=\"{mail_subject}\" not copied to "
+                    f"folder=\"{mail_actions['folder']}\" (data={data}), exiting..."
                 )
-                sys.exit(1)
+                return
 
             # Delete the original mail
             typ, data = self._handler.store(num, "+FLAGS", "\\Deleted")
             if typ != "OK":
-                self.logger.critical(
-                    'Fail to delete original mail with subject="%s" (data=%s),',
-                    " exiting...",
-                    mail_subject,
-                    data,
+                self.panic(
+                    f"Fail to delete original mail with subject=\"{mail_subject}\" "
+                    f"(data={data}), exiting..."
                 )
-                sys.exit(1)
+                return
 
             self._handler.expunge()
 
@@ -400,16 +393,20 @@ class Imap:
 
         # Send the telegram notification if needed
         if mail_actions["send_telegram"]:
-            self._send_telegram_notification(mail_subject, mail_from)
+            self._send_telegram_notification(
+                f"GET mail subject=\"{mail_subject}\" from=\"{mail_from}\""
+            )
 
         return mail_actions
 
-    def _send_telegram_notification(self, mail_subject, mail_from):
+    def _send_telegram_notification(self, message: str = None) -> None:
+        """
+        Send msg is telegram section is defined in the configuration.
+        """
         if self.config.get(SECTION_TELEGRAM_NAME, {}):
             token = self.config[SECTION_TELEGRAM_NAME][TELEGRAM_TOKEN_NAME]
             chat_id = self.config[SECTION_TELEGRAM_NAME][TELEGRAM_CHAT_ID_NAME]
             try:
-                message = f'GET mail subject="{mail_subject}" from="{mail_from}"'
                 url = (
                     f"https://api.telegram.org/bot{token}/sendMessage?"
                     f"chat_id={chat_id}&text={message}"
@@ -425,14 +422,26 @@ class Imap:
             except Exception as exc:
                 self.logger.exception("Failed to send telegram message: err=%s", exc)
 
+    def panic(self, msg: str) -> None:
+        self.running = False
+
+        self.logger.critical(msg)
+        
+        # If telegram is defined in the configuration, send a notification
+        self._send_telegram_notification(msg)
+        
+        self.logout()
+
     def logout(self) -> None:
         """
         Logout and close the mail handler.
         """
         # Close and logout the connection
-        try:
-            self._handler.close()
-            self._handler.logout()
-            self.logger.info("Successful disconnection")
-        except Exception as exc:
-            self.logger.exception("Failed to close/logout: err=%s", exc)
+        if self._handler:
+            try:
+                self._handler.close()
+                self._handler.logout()
+                self._handler = None
+                self.logger.info("Successful disconnection")
+            except Exception as exc:
+                self.logger.exception("Failed to close/logout: err=%s", exc)
