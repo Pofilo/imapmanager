@@ -20,7 +20,6 @@ import email
 from imaplib import IMAP4_SSL
 from logging import Logger
 from typing import List, TypedDict
-
 import requests
 
 from imapmanager.conf import ImapConf
@@ -52,6 +51,7 @@ class MailActions(TypedDict):
     Dict representing all actions to perform after analysing all filters for a given
     category.
     """
+
     filter_used: bool  # True if a filter matches something
     folder: str
     send_telegram: bool
@@ -60,11 +60,14 @@ class MailActions(TypedDict):
     @classmethod
     def create(
         cls,
-        filter_used: bool=False,
-        folder: str=None,
-        send_telegram: bool=False,
-        mark_as_read: bool=False,
+        filter_used: bool = False,
+        folder: str = None,
+        send_telegram: bool = False,
+        mark_as_read: bool = False,
     ):
+        """
+        Create the dict with default values.
+        """
         return MailActions(
             filter_used=filter_used,
             folder=folder,
@@ -173,9 +176,7 @@ class Imap:
             # Get the unseen mails of this directory
             typ, data = self._handler.search(None, "UNSEEN")
             if typ != "OK":
-                self.panic(
-                    f"Fail to search for mails (data={data}), exiting..."
-                )
+                self.panic(f"Fail to search for mails (data={data}), exiting...")
                 return
         except Exception as exc:
             self.logger.exception("Failed to search: err=%s", exc)
@@ -197,7 +198,7 @@ class Imap:
                 typ, data = self._handler.fetch(num, "(BODY.PEEK[])")
                 if typ != "OK":
                     self.panic(
-                        f"Fail to fetch mail with num=\"{num}\" (data={data}), "
+                        f'Fail to fetch mail with num="{num}" (data={data}), '
                         "exiting..."
                     )
                     return
@@ -233,20 +234,19 @@ class Imap:
 
             # Mark the mail as read if needed
             if mail_actions["mark_as_read"]:
-                typ, data = self._handler.store(num, "+FLAGS", "\Seen")
+                typ, data = self._handler.store(num, "+FLAGS", "\\Seen")
                 if typ != "OK":
                     self.panic(
-                        f"Fail to mark mail with subject=\"{mail_subject}\" as read "
+                        f'Fail to mark mail with subject="{mail_subject}" as read '
                         f"(data=%s), exiting..."
                     )
                     return
-
 
             # Copy the mail into the folder
             typ, data = self._handler.copy(num, mail_actions["folder"])
             if typ != "OK":
                 self.panic(
-                    f"Mail with subject=\"{mail_subject}\" not copied to "
+                    f'Mail with subject="{mail_subject}" not copied to '
                     f"folder=\"{mail_actions['folder']}\" (data={data}), exiting..."
                 )
                 return
@@ -255,7 +255,7 @@ class Imap:
             typ, data = self._handler.store(num, "+FLAGS", "\\Deleted")
             if typ != "OK":
                 self.panic(
-                    f"Fail to delete original mail with subject=\"{mail_subject}\" "
+                    f'Fail to delete original mail with subject="{mail_subject}" '
                     f"(data={data}), exiting..."
                 )
                 return
@@ -373,7 +373,7 @@ class Imap:
                 )
             if mail_actions["filter_used"]:
                 rule_used = IMAP_CC
-            
+
         # If we still don't have a rule for the mail, take the default folder
         if not mail_actions["folder"]:
             self.logger.debug("No rule for the mail, moving it into the default folder")
@@ -394,7 +394,7 @@ class Imap:
         # Send the telegram notification if needed
         if mail_actions["send_telegram"]:
             self._send_telegram_notification(
-                f"GET mail subject=\"{mail_subject}\" from=\"{mail_from}\""
+                f'GET mail subject="{mail_subject}" from="{mail_from}"'
             )
 
         return mail_actions
@@ -423,13 +423,16 @@ class Imap:
                 self.logger.exception("Failed to send telegram message: err=%s", exc)
 
     def panic(self, msg: str) -> None:
+        """
+        Log a critical message and send it as a telegram notification if possible.
+        """
         self.running = False
 
         self.logger.critical(msg)
-        
+
         # If telegram is defined in the configuration, send a notification
         self._send_telegram_notification(msg)
-        
+
         self.logout()
 
     def logout(self) -> None:

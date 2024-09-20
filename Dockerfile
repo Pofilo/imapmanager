@@ -3,7 +3,7 @@ FROM registry.pofilo.fr/python:3.12.6-alpine3.20
 
 LABEL maintainer="Pofilo <git@pofilo.fr>"
 
-ENV IMAPMANAGER_CONFIG_PATH="/etc/imapmanager.conf.yml"
+ENV IMAPMANAGER_CONFIG_PATH "/etc/imapmanager.conf.yml"
 ENV PYTHONUNBUFFERED 1
 
 WORKDIR /imapmanager
