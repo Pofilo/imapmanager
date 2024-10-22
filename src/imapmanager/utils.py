@@ -39,7 +39,7 @@ def extract_and_sanitize_mail_addresses(addresses):
         return None
 
     # Regex for a mail address
-    regex = r"([\w0-9._-]+@[\w0-9._-]+\.[\w0-9_-]+)"
+    regex = r"([\w0-9._+-]+@[\w0-9._-]+\.[\w0-9_-]+)"
     # Extract all mail address in a list
     addresses = re.findall(regex, addresses, re.M | re.I)
     # Lower each mail address
