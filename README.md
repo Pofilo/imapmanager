@@ -5,7 +5,7 @@ Connect and manage your emails through IMAP over SSL.
 
 ## Requirements
 
-+ The script uses **python 3.12.6**
++ The script uses **python 3.12.7**
 + Dependencies listed in `requirements.txt`
 
 ## Purpose
@@ -32,7 +32,7 @@ You can [find here](https://git.pofilo.fr/pofilo/imapmanager/src/branch/master/d
 
 + Download the last stable version [available here](https://git.pofilo.fr/pofilo/imapmanager/tags)
 + `cd imapmanager`
-+ Create virtual environment: `python3.12.6 -m venv venv`
++ Create virtual environment: `python3.12.7 -m venv venv`
 + Source it: `source venv/bin/activate`
 + Install dependencies: `pip install .`
 + `cp config/imapmanager.sample.conf.yml /etc/imapmanager.conf.yml`
