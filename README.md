@@ -6,7 +6,7 @@ Connect and manage your emails through IMAP over SSL.
 ## Requirements
 
 + The script uses **python 3.12.7**
-+ Dependencies listed in `requirements.txt`
++ Dependencies listed in `pyproject.toml`
 
 ## Purpose
 
@@ -62,6 +62,8 @@ black --check --diff --quiet "src/imapmanager"
 flake8 --max-line-length 88 "src/imapmanager"
 pylint --rcfile=.pylintrc "src/imapmanager"
 ```
+
++ Install "pre-commit" hook: `ln -s $(pwd)/hook-pre-commit .git/hooks/pre-commit`
 
 ## License
 
