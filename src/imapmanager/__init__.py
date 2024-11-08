@@ -66,6 +66,9 @@ def main():
     log_level = logging.getLevelName(config.get(LOG_LEVEL_NAME))
     logger.setLevel(log_level)
 
+    for module in ("requests", "urllib3"):
+        logging.getLogger(module).setLevel(log_level)
+
     imap = Imap(logger, config)
 
     polling_interval = config.get(POLLING_INTERVAL_NAME)
