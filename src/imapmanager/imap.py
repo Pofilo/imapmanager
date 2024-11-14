@@ -19,7 +19,8 @@ with this program. If not, see <http://www.gnu.org/licenses/>.
 import email
 from imaplib import IMAP4_SSL
 from logging import Logger
-from typing import List, TypedDict
+from typing import Self, TypedDict
+
 import requests
 
 from imapmanager.conf import ImapConf
@@ -34,22 +35,23 @@ from imapmanager.constants import (
     MAILBOX_NAME,
     PASSWORD_NAME,
     PORT_NAME,
+    SECTION_DEST_NAME,
     SECTION_FILTERS_NAME,
     SECTION_FROM_NAME,
-    SECTION_DEST_NAME,
     SECTION_SUBJECT_NAME,
     SECTION_TELEGRAM_NAME,
-    TELEGRAM_TOKEN_NAME,
     TELEGRAM_CHAT_ID_NAME,
+    TELEGRAM_TOKEN_NAME,
     USERNAME_NAME,
 )
 from imapmanager.utils import decode_subject, extract_and_sanitize_mail_addresses
 
+HTTP_CODE_SUCCESS = 200
+
 
 class MailActions(TypedDict):
     """
-    Dict representing all actions to perform after analysing all filters for a given
-    category.
+    Represent all actions to perform after analysing all filters for a given category.
     """
 
     filter_used: bool  # True if a filter matches something
@@ -57,14 +59,16 @@ class MailActions(TypedDict):
     send_telegram: bool
     mark_as_read: bool
 
+    # ruff: noqa: FBT001: boolean-type-hint-positional-argument
+    # ruff: noqa: FBT002: boolean-default-value-positional-argument
     @classmethod
     def create(
         cls,
         filter_used: bool = False,
-        folder: str = None,
+        folder: str | None = None,
         send_telegram: bool = False,
         mark_as_read: bool = False,
-    ):
+    ) -> Self:
         """
         Create the dict with default values.
         """
@@ -76,6 +80,13 @@ class MailActions(TypedDict):
         )
 
 
+# TODO(pofilo): reduce complexity
+# 028
+# ruff: noqa: C901: complex-structure
+# ruff: noqa: PLR0911: too-many-return-statements
+# ruff: noqa: PLR0912: too-many-branches
+# ruff: noqa: PLW2901: redefined-loop-name
+# ruff: noqa: SIM113: enumerate-for-loop
 class Imap:
     """
     Main class of ImapManager.
@@ -112,8 +123,9 @@ class Imap:
             self._handler = IMAP4_SSL(self._hostname, self.config.get(PORT_NAME))
             self._handler.login(self._username, self.config.get(PASSWORD_NAME))
             self.logger.info("Successful connection as username=%s", self._username)
-        except Exception as exc:
-            # TODO: maybe some retries could be made
+        except Exception as exc:  # noqa: BLE001: blind-except
+            # TODO(pofilo): maybe some retries could be made
+            # 030
             self.panic(f"Failed to login: err={exc}")
             return False
 
@@ -129,7 +141,7 @@ class Imap:
         try:
             if self._handler.check():
                 return True
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001: blind-except
             self.running = False
             self.logger.warning(
                 "Check connection failed, trying to reconnect: err=%s",
@@ -138,9 +150,9 @@ class Imap:
             return self._connect()
         return False
 
-    def _check_folder_exist_on_server(self, folder_name) -> bool:
-        """
-        This function check that the given folder exists on the server.
+    def _check_folder_exist_on_server(self, folder_name: str) -> bool:
+        r"""
+        Check that the given folder exists on the server.
         Folder on the server looks like (with a baskslash removed):
             (\\HasNoChildren) "." "INBOX.spam"
             (\\HasNoChildren) "." INBOX.spam
@@ -168,8 +180,8 @@ class Imap:
         try:
             # Go into the mailbox
             self._handler.select(mailbox)
-        except Exception as exc:
-            self.logger.exception("Failed to select: err=%s", exc)
+        except Exception:
+            self.logger.exception("Failed to select")
             return
 
         try:
@@ -178,8 +190,8 @@ class Imap:
             if typ != "OK":
                 self.panic(f"Fail to search for mails (data={data}), exiting...")
                 return
-        except Exception as exc:
-            self.logger.exception("Failed to search: err=%s", exc)
+        except Exception:
+            self.logger.exception("Failed to search")
             return
 
         # Counter of the number of mails proccessed
@@ -208,12 +220,11 @@ class Imap:
                 mail_subject = decode_subject(raw_email[IMAP_SUBJECT])
 
                 mail_actions = self._unsafe_process_one_email(raw_email, mail_subject)
-            except Exception as exc:
+            except Exception:
                 mail_actions["folder"] = self._default_destination_folder
                 self.logger.exception(
-                    'Error processing an email, moving it into folder="%s" err=%s',
+                    'Error processing an email, moving it into folder="%s"',
                     mail_actions["folder"],
-                    exc,
                 )
 
             # Check if the folder exists on the server
@@ -227,7 +238,7 @@ class Imap:
                 mail_actions["folder"] = self._default_destination_folder
                 if not self._check_folder_exist_on_server(mail_actions["folder"]):
                     self.panic(
-                        f"default folder=\"{mail_actions['folder']}\" does not exist "
+                        f'default folder="{mail_actions['folder']}" does not exist '
                         "on the server, please fix the configuration, exiting..."
                     )
                     return
@@ -247,7 +258,7 @@ class Imap:
             if typ != "OK":
                 self.panic(
                     f'Mail with subject="{mail_subject}" not copied to '
-                    f"folder=\"{mail_actions['folder']}\" (data={data}), exiting..."
+                    f'folder="{mail_actions['folder']}" (data={data}), exiting...'
                 )
                 return
 
@@ -269,7 +280,7 @@ class Imap:
         self,
         category: str,
         category_name: str,
-        params: List[str],
+        params: list[str],
     ) -> MailActions:
         """
         Check if at least one param of params is matching the given category by checking
@@ -281,7 +292,7 @@ class Imap:
                                 to check (SUBJECT, FROM, DEST, ...)
         :param      category_name   the name of the category (subject, from, to, cc, ..)
         :param      params      the values to check if one is present in the rule
-        :return     result      result of type MailActions
+        :return     result      result of type MailActions.
         """
         mail_actions = MailActions.create()
 
@@ -293,7 +304,8 @@ class Imap:
                 # Check every filter in the order
                 for filter_ in filters:  # filter variable already exists
                     # For this filter, check if at least one param matches
-                    filter_name = list(filter_.keys())[0]
+                    # (this take the first key of the dict "filter")
+                    filter_name = next(iter(filter_.keys()))
                     for param in params:
                         if filter_name.lower() in param.lower():
                             mail_actions["filter_used"] = True
@@ -316,8 +328,9 @@ class Imap:
 
         return mail_actions
 
-    def _unsafe_process_one_email(self, raw_email, mail_subject) -> MailActions:
-        # pylint: disable=too-many-branches
+    def _unsafe_process_one_email(
+        self, raw_email: str, mail_subject: str
+    ) -> MailActions:
         mail_actions = MailActions.create()
         rule_used = None
         mail_dest = []
@@ -399,7 +412,7 @@ class Imap:
 
         return mail_actions
 
-    def _send_telegram_notification(self, message: str = None) -> None:
+    def _send_telegram_notification(self, message: str | None = None) -> None:
         """
         Send msg is telegram section is defined in the configuration.
         """
@@ -412,14 +425,14 @@ class Imap:
                     f"chat_id={chat_id}&text={message}"
                 )
                 resp = requests.get(url, timeout=5)
-                if resp.status_code != 200:
+                if resp.status_code != HTTP_CODE_SUCCESS:
                     self.logger.warning(
                         "Failed to send telegram message, status_code=%s err=%s",
                         resp.status_code,
                         resp.text,
                     )
-            except Exception as exc:
-                self.logger.exception("Failed to send telegram message: err=%s", exc)
+            except Exception:
+                self.logger.exception("Failed to send telegram message")
 
     def panic(self, msg: str) -> None:
         """
@@ -445,5 +458,5 @@ class Imap:
                 self._handler.logout()
                 self._handler = None
                 self.logger.info("Successful disconnection")
-            except Exception as exc:
-                self.logger.exception("Failed to close/logout: err=%s", exc)
+            except Exception:
+                self.logger.exception("Failed to close/logout")

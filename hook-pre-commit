@@ -50,15 +50,14 @@ fi
 
 set -e
 
-FOLDERS="src/imapmanager"
-CMD="black --check --diff --quiet ${FOLDERS}"
-echo "${CMD}"
+CMD="ruff format --diff"
+echo "===== Running =====\n${CMD}"
+echo "==================="
 eval "${CMD}"
+echo "======= End ======="
 
-CMD="flake8 --max-line-length 88 ${FOLDERS}"
-echo "${CMD}"
+CMD="ruff check"
+echo "===== Running =====\n${CMD}"
+echo "==================="
 eval "${CMD}"
-
-CMD="pylint --rcfile=.pylintrc ${FOLDERS}"
-echo "${CMD}"
-eval "${CMD}"
+echo "======= End ======="

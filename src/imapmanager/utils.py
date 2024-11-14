@@ -21,19 +21,17 @@ import logging
 import quopri
 import re
 
-
 logger = logging.getLogger("imapmanager")
 
 
-def extract_and_sanitize_mail_addresses(addresses):
+def extract_and_sanitize_mail_addresses(addresses: str) -> list[str]:
     """
     Extract and sanitize all mail addresses in a string.
     "Name LASTNAME" <Name.Lastname@example.com>, YES.NO@may.be, toto@example.com
     will become a list containing:
     name.lastname@example.com, yes.no@may.be, toto@example.com
-    :param      addresses   the mail addresses to clean
+    :param      addresses   the mail addresses to clean.
     """
-
     # If the string is empty, we cannot find any mails
     if not addresses:
         return None
@@ -41,16 +39,14 @@ def extract_and_sanitize_mail_addresses(addresses):
     # Regex for a mail address
     regex = r"([\w0-9._+-]+@[\w0-9._-]+\.[\w0-9_-]+)"
     # Extract all mail address in a list
-    addresses = re.findall(regex, addresses, re.M | re.I)
+    addresses = re.findall(regex, addresses, re.MULTILINE | re.IGNORECASE)
     # Lower each mail address
-    addresses = [x.lower() for x in addresses]
-
-    return addresses
+    return [x.lower() for x in addresses]
 
 
-def decode_subject(subject):
+def decode_subject(subject: str) -> str:
     """
-    Credits: https://stackoverflow.com/a/43393449
+    Credits: https://stackoverflow.com/a/43393449.
     """
     if not subject:
         return None

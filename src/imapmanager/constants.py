@@ -21,7 +21,7 @@ CONFIG_PATH_NAME = "IMAPMANAGER_CONFIG_PATH"
 HOSTNAME_NAME = "hostname"
 PORT_NAME = "port"
 USERNAME_NAME = "username"
-PASSWORD_NAME = "password"
+PASSWORD_NAME = "password"  # noqa: S105: hardcoded-password-string
 MAILBOX_NAME = "mailbox"
 POLLING_INTERVAL_NAME = "pollingInterval"
 IMAP_DEFAULT_FOLDER_NAME = "defaulFolder"
@@ -33,7 +33,7 @@ SECTION_FROM_NAME = "from"
 SECTION_DEST_NAME = "dest"
 
 SECTION_TELEGRAM_NAME = "telegram"
-TELEGRAM_TOKEN_NAME = "token"
+TELEGRAM_TOKEN_NAME = "token"  # noqa: S105: hardcoded-password-string
 TELEGRAM_CHAT_ID_NAME = "chat_id"
 
 # IMAP VARIABLES

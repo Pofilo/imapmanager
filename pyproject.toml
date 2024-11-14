@@ -4,7 +4,7 @@ name = "imapmanager"
 version = "0.0.1-dev"  # REQUIRED, although can be dynamic
 description = "Connect and manage your mail account through IMAP."
 readme = "README.md"
-requires-python = "~=3.12.7"
+requires-python = "==3.12.7"
 license = {file = "LICENSE"}
 keywords = ["imap", "python"]
 
@@ -21,17 +21,14 @@ classifiers = [
 ]
 
 dependencies = [
-    "PyYAML~=6.0.1",
-    "requests~=2.32.3",
+    "PyYAML==6.0.1",
+    "requests==2.32.3",
 ]
 
 [project.optional-dependencies]
 # $ pip install .[linters]
 linters = [
-    "black~=24.10.0",
-    "flake8~=7.1.1",
-    "pycodestyle~=2.12.1",
-    "pylint~=3.3.1",
+    "ruff==0.7.3",
 ]
 
 [project.urls]
@@ -41,3 +38,31 @@ Changelog = "https://git.pofilo.fr/pofilo/imapmanager/graph"
 
 [project.scripts]
 imapmanager = "imapmanager:main"
+
+[tool.ruff]
+line-length = 88
+indent-width = 4
+
+[tool.ruff.lint]
+select = ["ALL"]
+# https://docs.astral.sh/ruff/rules/
+ignore = [
+    "D105",  # undocumented-magic-method
+    "D107",  # undocumented-public-init
+    "D200",  # fits-on-one-line
+    "D203",  # one-blank-line-before-class
+    "D205",  # blank-line-after-summary
+    "D212",  # multi-line-summary-first-line
+    "FIX002",  # line-contains-todo
+    # Disagree with those rules
+    "UP015",  # redundant-open-modes
+    # False positives
+    "ERA001",  # commented-out-code
+    # "The following rules may cause conflicts when used with the formatter"
+    "COM812",  # missing-trailing-comma
+    "ISC001",  # single-line-implicit-string-concatenation
+]
+
+fixable = ["ALL"]
+unfixable = []
+

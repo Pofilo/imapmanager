@@ -20,16 +20,18 @@ from collections import UserDict
 from copy import deepcopy
 from json import dumps
 from logging import Logger
-from os import getenv, path
+from os import getenv
+from pathlib import Path
 from sys import exit as sys_exit
-from yaml import load, SafeLoader
+
+from yaml import SafeLoader, load
 
 from imapmanager.constants import (
     CONFIG_PATH_NAME,
     DEFAULT_CONFIG_PATH,
+    HOSTNAME_NAME,
     IMAP_DEFAULT_FOLDER_NAME,
     LOG_LEVEL_NAME,
-    HOSTNAME_NAME,
     MAILBOX_NAME,
     PASSWORD_NAME,
     POLLING_INTERVAL_NAME,
@@ -47,7 +49,7 @@ class ImapConf(UserDict):
     Class loading the conf file as yaml and exposing the conf as a dict.
     """
 
-    def __init__(self, logger: Logger, *args, **kwargs) -> None:
+    def __init__(self, logger: Logger, *args: tuple, **kwargs: dict) -> None:
         super().__init__(*args, **kwargs)
         self.logger = logger
         self._config_path = None
@@ -55,16 +57,17 @@ class ImapConf(UserDict):
         # Open and load config file
         self._open_and_load_config()
 
-    def _open_and_load_config(self):
+    def _open_and_load_config(self) -> None:
         """
-        Method to open and load the configuration file.
+        Open and load the configuration file.
         """
-        # TODO: use argparse instead of env
+        # TODO(pofilo): use argparse instead of env
+        # 029
         self._config_path = getenv(CONFIG_PATH_NAME, DEFAULT_CONFIG_PATH)
 
-        if path.isfile(self._config_path):
+        if Path(self._config_path).is_file():
             try:
-                with open(self._config_path, "r", encoding="UTF-8") as file_fd:
+                with Path(self._config_path).open("r", encoding="UTF-8") as file_fd:
                     self.data = load(file_fd, Loader=SafeLoader)
                     # Check if config is valid
                     self._check_config()
@@ -75,8 +78,8 @@ class ImapConf(UserDict):
                             conf[SECTION_TELEGRAM_NAME][TELEGRAM_TOKEN_NAME] = "*****"
                             conf[SECTION_TELEGRAM_NAME][TELEGRAM_CHAT_ID_NAME] = "*****"
                         self.logger.debug("conf used:\n%s", dumps(conf, indent=2))
-            except Exception as exc:
-                self.logger.error("Parsing while reading conf: exc=%s", exc)
+            except Exception:
+                self.logger.exception("Parsing while reading conf")
                 sys_exit(1)
         else:
             self.logger.critical(
@@ -86,12 +89,11 @@ class ImapConf(UserDict):
             )
             sys_exit(1)
 
-    def _check_config(self):
+    def _check_config(self) -> None:
         """
-        Method used to check if the configuration is valid
+        Check if the configuration is valid
         (aka contains all mandatory fields).
         """
-
         # Check all mandatories keys
         self._check_config_key(SECTION_FILTERS_NAME)
 
@@ -104,7 +106,7 @@ class ImapConf(UserDict):
         self._check_config_key(IMAP_DEFAULT_FOLDER_NAME)
         self._check_config_key(LOG_LEVEL_NAME)
 
-    def _check_config_key(self, key):
+    def _check_config_key(self, key: str) -> None:
         """
         Check that the given key exists in the configuration.
         :param      key         the key to check

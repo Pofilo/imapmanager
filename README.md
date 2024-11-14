@@ -58,9 +58,8 @@ You can change the path of the configuration file and set the environment variab
 + Run linters:
 
 ```
-black --check --diff --quiet "src/imapmanager"
-flake8 --max-line-length 88 "src/imapmanager"
-pylint --rcfile=.pylintrc "src/imapmanager"
+ruff format --diff
+ruff check
 ```
 
 + Install "pre-commit" hook: `ln -s $(pwd)/hook-pre-commit .git/hooks/pre-commit`

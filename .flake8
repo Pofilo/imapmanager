@@ -1,4 +1,0 @@
-[flake8]
-# same as black
-max-line-length = 88
-# max-complexity = 10

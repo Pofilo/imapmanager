@@ -18,20 +18,19 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
-
 import logging
-from signal import signal, strsignal, SIGINT, SIGTERM
+from signal import SIGINT, SIGTERM, signal, strsignal
 from time import sleep
+from types import FrameType
 
+from imapmanager.conf import ImapConf
 from imapmanager.constants import (
     LOG_LEVEL_NAME,
     POLLING_INTERVAL_NAME,
 )
-from imapmanager.conf import ImapConf
 from imapmanager.imap import Imap
 
-
-main_running = True  # pylint: disable=invalid-name
+main_running = True
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -40,23 +39,23 @@ logging.basicConfig(
 logger = logging.getLogger("imapmanager")
 
 
-def signal_handler(signal_value, _frame):
+def signal_handler(signal_value: int, _frame: FrameType) -> None:
     """
-    Function to treat signals catched.
+    Treat signals catched.
     If a signal is catched, <running> is set to False and the main loop will exit soon.
     :param  signal_value        the value of the signal catched
-    :param  frame               unused (needed because of the signal API)
+    :param  frame               unused (needed because of the signal API).
     """
-    global main_running  # pylint: disable=global-statement
+    global main_running  # noqa: PLW0603: global-statement
     logger.info("Signal %s catched, stopping...", strsignal(signal_value))
     main_running = False
 
 
-def main():
+def main() -> None:
     """
-    Main function for the imapmanager, everything starts here!
+    Start the imapmanager and remain in the while loop.
     """
-    global main_running  # pylint: disable=global-statement
+    global main_running  # noqa: PLW0603: global-statement
     logger.info("Starting imapmanager...")
 
     # INIT
