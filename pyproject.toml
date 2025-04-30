@@ -38,6 +38,7 @@ Changelog = "https://git.pofilo.fr/pofilo/imapmanager/graph"
 
 [project.scripts]
 imapmanager = "imapmanager:main"
+list-folders = "imapmanager.scripts.list_folders:main"
 
 [tool.ruff]
 line-length = 88

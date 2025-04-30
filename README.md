@@ -41,6 +41,8 @@ You can [find here](https://git.pofilo.fr/pofilo/imapmanager/src/branch/master/d
 
 You can change the path of the configuration file and set the environment variable `export IMAPMANAGER_CONFIG_PATH="config/imapmanager.conf.yml"`
 
+Folders of a mailbox can be listed by using the script `list-folders`.
+
 ### Using Docker
 
 + Create the configuration file using the [template available here](https://git.pofilo.fr/pofilo/imapmanager/src/branch/master/config/imapmanager.sample.conf.yml) (use the template corresponding to the version of **imapmanager** you will be using).
