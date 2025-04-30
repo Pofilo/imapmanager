@@ -20,6 +20,7 @@ import email
 from imaplib import IMAP4_SSL
 from logging import Logger
 from typing import Self, TypedDict
+from urllib.parse import quote
 
 import requests
 
@@ -422,7 +423,7 @@ class Imap:
             try:
                 url = (
                     f"https://api.telegram.org/bot{token}/sendMessage?"
-                    f"chat_id={chat_id}&text={message}"
+                    f"chat_id={chat_id}&text={quote(message)}"
                 )
                 resp = requests.get(url, timeout=5)
                 if resp.status_code != HTTP_CODE_SUCCESS:
