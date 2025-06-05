@@ -365,7 +365,7 @@ class Imap:
                 rule_used = IMAP_SUBJECT
 
         # Check if the mail has a 'body' rule
-        if mail_body:
+        if mail_body and not rule_used:
             mail_actions = self._analyse_filters_for_category(
                 SECTION_BODY_NAME, IMAP_BODY, [mail_body]
             )

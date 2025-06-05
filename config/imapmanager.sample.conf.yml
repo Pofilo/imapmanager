@@ -36,7 +36,8 @@ logLevel: INFO
 #        FILTERS        #
 #########################
 # Filters are divided in 3 categories.
-# First, the 'subject' will be analyzed, then the 'from' and the 'to'/'cc' fields (represented by the 'DEST' category).
+# First, the 'subject' will be analyzed, then the 'body', and finally the 'from'
+# and the 'to'/'cc' fields (represented by the 'DEST' category).
 # Each category is working in the same way:
 #   - the key represents the folden name
 #   - the values represent the filters to analyse
