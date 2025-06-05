@@ -61,6 +61,10 @@ filters:
       # Also works with UTF-8
       - "Сοոոесt аոⅾ Ꮯⅼаіⅿ": [move, mark_as_read]
 
+  body:
+    INBOX.spamFolder:
+      - "You won 1000 bictoins": [move, mark_as_read]
+
   from:
     INBOX.folder1:
       - "mail1@domain.com": [move]

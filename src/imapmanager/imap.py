@@ -17,9 +17,10 @@ with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
 import email
+from email import policy
 from imaplib import IMAP4_SSL
 from logging import Logger
-from typing import Self, TypedDict
+from typing import TYPE_CHECKING, Self, TypedDict
 from urllib.parse import quote
 
 import requests
@@ -28,6 +29,7 @@ from imapmanager.conf import ImapConf
 from imapmanager.constants import (
     ENCODING,
     HOSTNAME_NAME,
+    IMAP_BODY,
     IMAP_CC,
     IMAP_DEFAULT_FOLDER_NAME,
     IMAP_FROM,
@@ -36,6 +38,7 @@ from imapmanager.constants import (
     MAILBOX_NAME,
     PASSWORD_NAME,
     PORT_NAME,
+    SECTION_BODY_NAME,
     SECTION_DEST_NAME,
     SECTION_FILTERS_NAME,
     SECTION_FROM_NAME,
@@ -45,7 +48,13 @@ from imapmanager.constants import (
     TELEGRAM_TOKEN_NAME,
     USERNAME_NAME,
 )
-from imapmanager.utils import decode_subject, extract_and_sanitize_mail_addresses
+from imapmanager.utils import (
+    decode_subject,
+    extract_and_sanitize_mail_addresses,
+)
+
+if TYPE_CHECKING:
+    from email.message import EmailMessage
 
 HTTP_CODE_SUCCESS = 200
 
@@ -216,11 +225,19 @@ class Imap:
                     )
                     return
                 # data[0][1] is the raw email
-                raw_email = email.message_from_bytes(data[0][1])
+                mail_msg: EmailMessage = email.message_from_bytes(
+                    data[0][1], policy=policy.default
+                )
 
-                mail_subject = decode_subject(raw_email[IMAP_SUBJECT])
+                mail_subject = decode_subject(mail_msg[IMAP_SUBJECT])
+                mail_body: EmailMessage = mail_msg.get_body(
+                    preferencelist=("plain", "html")
+                )
+                mail_body = mail_body.get_content()
 
-                mail_actions = self._unsafe_process_one_email(raw_email, mail_subject)
+                mail_actions = self._unsafe_process_one_email(
+                    mail_msg, mail_subject, mail_body
+                )
             except Exception:
                 mail_actions["folder"] = self._default_destination_folder
                 self.logger.exception(
@@ -333,7 +350,7 @@ class Imap:
         return mail_actions
 
     def _unsafe_process_one_email(
-        self, raw_email: str, mail_subject: str
+        self, raw_email: str, mail_subject: str, mail_body: str
     ) -> MailActions:
         mail_actions = MailActions.create()
         rule_used = None
@@ -346,6 +363,14 @@ class Imap:
             )
             if mail_actions["filter_used"]:
                 rule_used = IMAP_SUBJECT
+
+        # Check if the mail has a 'body' rule
+        if mail_body:
+            mail_actions = self._analyse_filters_for_category(
+                SECTION_BODY_NAME, IMAP_BODY, [mail_body]
+            )
+            if mail_actions["filter_used"]:
+                rule_used = IMAP_BODY
 
         # Check if the mail has a 'from' rule (only if no rules applied yet)
         mail_from = raw_email[IMAP_FROM]
@@ -398,7 +423,7 @@ class Imap:
 
         self.logger.info(
             'GET mail subject="%s" from="%s" dest="%s" to be moved into "%s" '
-            "(telegram=%s mark_as_read=%s rule=%s)",
+            "(telegram=%s, mark_as_read=%s, rule=%s)",
             mail_subject,
             mail_from,
             mail_dest,

@@ -29,6 +29,7 @@ LOG_LEVEL_NAME = "logLevel"
 
 SECTION_FILTERS_NAME = "filters"
 SECTION_SUBJECT_NAME = "subject"
+SECTION_BODY_NAME = "body"
 SECTION_FROM_NAME = "from"
 SECTION_DEST_NAME = "dest"
 
@@ -38,6 +39,7 @@ TELEGRAM_CHAT_ID_NAME = "chat_id"
 
 # IMAP VARIABLES
 IMAP_SUBJECT = "subject"
+IMAP_BODY = "body"
 IMAP_FROM = "from"
 IMAP_TO = "to"
 IMAP_CC = "cc"
