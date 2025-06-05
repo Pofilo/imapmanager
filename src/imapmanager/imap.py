@@ -281,11 +281,11 @@ class Imap:
         self,
         category: str,
         category_name: str,
-        params: list[str],
+        input_values: list[str],
     ) -> MailActions:
         """
-        Check if at least one param of params is matching the given category by checking
-        all its rules and filters.
+        Check if at least one param of input_values is matching the given category
+        by checking all its rules and filters.
         If there is a match, the result is immediately returned.
         The function stop searching after a first match.
         :param      config      the configuration where to get the info from
@@ -299,33 +299,36 @@ class Imap:
 
         # Get all rules for the category
         rules = self.config[SECTION_FILTERS_NAME].get(category)
-        if rules:
-            # A rule has a list of rule composed of rules and filters
-            for folder, filters in rules.items():
-                # Check every filter in the order
-                for filter_ in filters:  # filter variable already exists
-                    # For this filter, check if at least one param matches
-                    # (this take the first key of the dict "filter")
-                    filter_name = next(iter(filter_.keys()))
-                    for param in params:
-                        if filter_name.lower() in param.lower():
-                            mail_actions["filter_used"] = True
+        if not rules:
+            return mail_actions
 
-                            # Filter matches, check its actions
-                            if "move" in filter_[filter_name]:
-                                mail_actions["folder"] = folder
-                            if "telegram" in filter_[filter_name]:
-                                mail_actions["send_telegram"] = True
-                            if "mark_as_read" in filter_[filter_name]:
-                                mail_actions["mark_as_read"] = True
+        # A rule has a list of rule composed of rules and filters
+        for target_folder, filter_entries in rules.items():
+            # Check every filter in the order
+            for filter_entry in filter_entries:
+                # For this filter, check if at least one input_values matches
+                # filter_entry looks like: {'[SPAM]': ['move', 'mark_as_read']}
+                # (this take the first key of the dict "filter_entry" (here: '[SPAM]'))
+                filter_pattern = next(iter(filter_entry.keys()))
+                if any(filter_pattern.lower() in inp.lower() for inp in input_values):
+                    mail_actions["filter_used"] = True
+                    matched_actions = filter_entry[filter_pattern]
 
-                            self.config.logger.debug(
-                                "Got a match for category=%s param=%s folder=%s",
-                                category_name,
-                                param,
-                                mail_actions["folder"],
-                            )
-                            return mail_actions
+                    # Filter matches, check its actions
+                    if "move" in matched_actions:
+                        mail_actions["folder"] = target_folder
+                    if "telegram" in matched_actions:
+                        mail_actions["send_telegram"] = True
+                    if "mark_as_read" in matched_actions:
+                        mail_actions["mark_as_read"] = True
+
+                    self.logger.debug(
+                        "Got a match for category=%s filter_pattern=%s folder=%s",
+                        category_name,
+                        filter_pattern,
+                        mail_actions["folder"],
+                    )
+                    return mail_actions
 
         return mail_actions
 
