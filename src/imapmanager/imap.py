@@ -233,7 +233,8 @@ class Imap:
                 mail_body: EmailMessage = mail_msg.get_body(
                     preferencelist=("plain", "html")
                 )
-                mail_body = mail_body.get_content()
+                if mail_body:
+                    mail_body = mail_body.get_content()
 
                 mail_actions = self._unsafe_process_one_email(
                     mail_msg, mail_subject, mail_body
