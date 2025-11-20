@@ -69,8 +69,8 @@ class MailActions(TypedDict):
     send_telegram: bool
     mark_as_read: bool
 
-    # ruff: noqa: FBT001: boolean-type-hint-positional-argument
-    # ruff: noqa: FBT002: boolean-default-value-positional-argument
+    # ruff: noqa: FBT001 (boolean-type-hint-positional-argument)
+    # ruff: noqa: FBT002 (boolean-default-value-positional-argument)
     @classmethod
     def create(
         cls,
@@ -92,11 +92,11 @@ class MailActions(TypedDict):
 
 # TODO(pofilo): reduce complexity
 # 028
-# ruff: noqa: C901: complex-structure
-# ruff: noqa: PLR0911: too-many-return-statements
-# ruff: noqa: PLR0912: too-many-branches
-# ruff: noqa: PLW2901: redefined-loop-name
-# ruff: noqa: SIM113: enumerate-for-loop
+# ruff: noqa: C901  (complex-structure)
+# ruff: noqa: PLR0911 (too-many-return-statements)
+# ruff: noqa: PLR0912 (too-many-branches)
+# ruff: noqa: PLW2901 (redefined-loop-name)
+# ruff: noqa: SIM113 (enumerate-for-loop)
 class Imap:
     """
     Main class of ImapManager.
@@ -133,7 +133,7 @@ class Imap:
             self._handler = IMAP4_SSL(self._hostname, self.config.get(PORT_NAME))
             self._handler.login(self._username, self.config.get(PASSWORD_NAME))
             self.logger.info("Successful connection as username=%s", self._username)
-        except Exception as exc:  # noqa: BLE001: blind-except
+        except Exception as exc:  # noqa: BLE001 (blind-except)
             # TODO(pofilo): maybe some retries could be made
             # 030
             self.panic(f"Failed to login: err={exc}")
@@ -151,7 +151,7 @@ class Imap:
         try:
             if self._handler.check():
                 return True
-        except Exception as exc:  # noqa: BLE001: blind-except
+        except Exception as exc:  # noqa: BLE001 (blind-except)
             self.running = False
             self.logger.warning(
                 "Check connection failed, trying to reconnect: err=%s",
@@ -220,8 +220,7 @@ class Imap:
                 typ, data = self._handler.fetch(num, "(BODY.PEEK[])")
                 if typ != "OK":
                     self.panic(
-                        f'Fail to fetch mail with num="{num}" (data={data}), '
-                        "exiting..."
+                        f'Fail to fetch mail with num="{num}" (data={data}), exiting...'
                     )
                     return
                 # data[0][1] is the raw email
@@ -257,7 +256,7 @@ class Imap:
                 mail_actions["folder"] = self._default_destination_folder
                 if not self._check_folder_exist_on_server(mail_actions["folder"]):
                     self.panic(
-                        f'default folder="{mail_actions['folder']}" does not exist '
+                        f'default folder="{mail_actions["folder"]}" does not exist '
                         "on the server, please fix the configuration, exiting..."
                     )
                     return
@@ -277,7 +276,7 @@ class Imap:
             if typ != "OK":
                 self.panic(
                     f'Mail with subject="{mail_subject}" not copied to '
-                    f'folder="{mail_actions['folder']}" (data={data}), exiting...'
+                    f'folder="{mail_actions["folder"]}" (data={data}), exiting...'
                 )
                 return
 

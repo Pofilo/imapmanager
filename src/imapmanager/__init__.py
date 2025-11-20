@@ -46,7 +46,7 @@ def signal_handler(signal_value: int, _frame: FrameType) -> None:
     :param  signal_value        the value of the signal catched
     :param  frame               unused (needed because of the signal API).
     """
-    global main_running  # noqa: PLW0603: global-statement
+    global main_running  # noqa: PLW0603 (global-statement)
     logger.info("Signal %s catched, stopping...", strsignal(signal_value))
     main_running = False
 
@@ -55,7 +55,7 @@ def main() -> None:
     """
     Start the imapmanager and remain in the while loop.
     """
-    global main_running  # noqa: PLW0603: global-statement
+    global main_running  # noqa: PLW0603 (global-statement)
     logger.info("Starting imapmanager...")
 
     # INIT
