@@ -16,10 +16,9 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
-import base64
 import logging
-import quopri
 import re
+from email.header import decode_header, make_header
 
 logger = logging.getLogger("imapmanager")
 
@@ -46,33 +45,9 @@ def extract_and_sanitize_mail_addresses(addresses: str) -> list[str]:
 
 def decode_subject(subject: str) -> str:
     """
-    Credits: https://stackoverflow.com/a/43393449.
+    Decode an email subject that may contain RFC 2047 encoded-words.
     """
     if not subject:
         return None
 
-    pattern = re.compile(
-        r"(([^=]*)=\?([^\?]*)\?([BbQq])\?([^\?]*)\?=([^=]*))", re.IGNORECASE
-    )
-    data = pattern.findall(subject)
-    line = []
-    if data:
-        for g in data:
-            (_raw, extra1, encoding, method, string, extra) = g
-            extra1 = extra1.replace("\r", "").replace("\n", "").strip()
-            if len(extra1) > 0:
-                line.append(extra1)
-            if method.lower() == "q":
-                string = quopri.decodestring(string)
-                string = string.decode(encoding, errors="ignore")
-                string = string.replace("_", " ").strip()
-            if method.lower() == "b":
-                string = base64.b64decode(string)
-                string = string.decode(encoding, errors="ignore")
-            line.append(string)
-            extra = extra.replace("\r", "").replace("\n", "").strip()
-            if len(extra) > 0:
-                line.append(extra)
-        subject = "".join(line)
-
-    return subject
+    return str(make_header(decode_header(subject)))
