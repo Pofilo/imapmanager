@@ -28,6 +28,8 @@ import requests
 from imapmanager.conf import ImapConf
 from imapmanager.constants import (
     ENCODING,
+    FILTER_ACTIONS_NAME,
+    FILTER_PATTERN_NAME,
     HOSTNAME_NAME,
     IMAP_BODY,
     IMAP_CC,
@@ -324,12 +326,12 @@ class Imap:
             # Check every filter in the order
             for filter_entry in filter_entries:
                 # For this filter, check if at least one input_values matches
-                # filter_entry looks like: {'[SPAM]': ['move', 'mark_as_read']}
-                # (this take the first key of the dict "filter_entry" (here: '[SPAM]'))
-                filter_pattern = next(iter(filter_entry.keys()))
+                # filter_entry looks like:
+                #   {pattern: '[SPAM]', actions: [move, mark_as_read]}
+                filter_pattern = filter_entry[FILTER_PATTERN_NAME]
                 if any(filter_pattern.lower() in inp.lower() for inp in input_values):
                     mail_actions["filter_used"] = True
-                    matched_actions = filter_entry[filter_pattern]
+                    matched_actions = filter_entry[FILTER_ACTIONS_NAME]
 
                     # Filter matches, check its actions
                     if "move" in matched_actions:

@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 """
 __init__.py: imapmanager's main file.
 

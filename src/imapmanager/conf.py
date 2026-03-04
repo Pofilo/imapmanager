@@ -29,6 +29,8 @@ from yaml import SafeLoader, load
 from imapmanager.constants import (
     CONFIG_PATH_NAME,
     DEFAULT_CONFIG_PATH,
+    FILTER_ACTIONS_NAME,
+    FILTER_PATTERN_NAME,
     HOSTNAME_NAME,
     IMAP_DEFAULT_FOLDER_NAME,
     LOG_LEVEL_NAME,
@@ -36,7 +38,11 @@ from imapmanager.constants import (
     PASSWORD_NAME,
     POLLING_INTERVAL_NAME,
     PORT_NAME,
+    SECTION_BODY_NAME,
+    SECTION_DEST_NAME,
     SECTION_FILTERS_NAME,
+    SECTION_FROM_NAME,
+    SECTION_SUBJECT_NAME,
     SECTION_TELEGRAM_NAME,
     TELEGRAM_CHAT_ID_NAME,
     TELEGRAM_TOKEN_NAME,
@@ -96,6 +102,7 @@ class ImapConf(UserDict):
         """
         # Check all mandatories keys
         self._check_config_key(SECTION_FILTERS_NAME)
+        self._check_filters()
 
         self._check_config_key(HOSTNAME_NAME)
         self._check_config_key(PORT_NAME)
@@ -115,3 +122,34 @@ class ImapConf(UserDict):
         if not self.data.get(key):
             self.logger.critical("key=%s not found in config file", key)
             sys_exit(1)
+
+    def _check_filters(self) -> None:
+        """
+        Check that every filter entry in every category has the mandatory
+        <pattern> and <actions> keys.
+        Log and exit on the first invalid entry found.
+        """
+        filters = self.data.get(SECTION_FILTERS_NAME, {})
+        categories = [
+            SECTION_SUBJECT_NAME,
+            SECTION_BODY_NAME,
+            SECTION_FROM_NAME,
+            SECTION_DEST_NAME,
+        ]
+        for category in filters:
+            if category not in categories:
+                self.logger.critical("category=%s unknown", category)
+                sys_exit(1)
+            for folder, entries in filters[category].items():
+                for index, entry in enumerate(entries):
+                    # Maybe we could also check if there is unknown fields
+                    for mandatory_field in (FILTER_PATTERN_NAME, FILTER_ACTIONS_NAME):
+                        if mandatory_field not in entry:
+                            self.logger.critical(
+                                "key=%s not found in filter=filters.%s.%s[%d]",
+                                mandatory_field,
+                                category,
+                                folder,
+                                index,
+                            )
+                            sys_exit(1)

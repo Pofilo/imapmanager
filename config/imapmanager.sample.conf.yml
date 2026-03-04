@@ -57,25 +57,33 @@ logLevel: INFO
 filters:
   subject:
     INBOX.spamFolder:
-      - "[SPAM]": [move, mark_as_read]
-      - "*** SPAM ***": [move, mark_as_read]
+      - pattern: "[SPAM]"
+        actions: [move, mark_as_read]
+      - pattern: "*** SPAM ***"
+        actions: [move, mark_as_read]
       # Also works with UTF-8
-      - "Сοոոесt аոⅾ Ꮯⅼаіⅿ": [move, mark_as_read]
+      - pattern: "Сοոոесt аոⅾ Ꮯⅼаіⅿ"
+        actions: [move, mark_as_read]
 
   body:
     INBOX.spamFolder:
-      - "You won 1000 bictoins": [move, mark_as_read]
+      - pattern: "You won 1000 bictoins"
+        actions: [move, mark_as_read]
 
   from:
     INBOX.folder1:
-      - "mail1@domain.com": [move]
+      - pattern: "mail1@domain.com"
+        actions: [move]
 
   dest:
     INBOX.folder1:
-      - "mail1@domain1.com": [move]
+      - pattern: "mail1@domain1.com"
+        actions: [move]
     INBOX.example folder with spaces:
-      - "mail2@domain1.com": [move]
-      # - "mail2@domain2.com": [move, telegram]
+      - pattern: "mail2@domain1.com"
+        actions: [move]
+      # - pattern: "mail2@domain2.com"
+      #   actions: [move, telegram]
 
 #########################
 #        TELEGRAM       #

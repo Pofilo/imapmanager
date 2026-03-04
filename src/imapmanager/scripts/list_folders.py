@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 """
 list_folders.py: utility script to list all folders in a mailbox.
 

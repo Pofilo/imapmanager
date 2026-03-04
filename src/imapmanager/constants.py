@@ -33,6 +33,9 @@ SECTION_BODY_NAME = "body"
 SECTION_FROM_NAME = "from"
 SECTION_DEST_NAME = "dest"
 
+FILTER_PATTERN_NAME = "pattern"
+FILTER_ACTIONS_NAME = "actions"
+
 SECTION_TELEGRAM_NAME = "telegram"
 TELEGRAM_TOKEN_NAME = "token"  # noqa: S105 (hardcoded-password-string)
 TELEGRAM_CHAT_ID_NAME = "chat_id"
