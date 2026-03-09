@@ -1,5 +1,5 @@
 # Same official python image but without restrictions of official docker registry
-FROM registry.pofilo.fr/python:3.13.9-alpine3.22
+FROM registry.pofilo.fr/python:3.14.3-alpine3.23
 
 LABEL maintainer="Pofilo <git@pofilo.fr>"
 

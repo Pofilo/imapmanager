@@ -19,13 +19,11 @@ with this program. If not, see <http://www.gnu.org/licenses/>.
 import email
 from email import policy
 from imaplib import IMAP4_SSL
-from logging import Logger
 from typing import TYPE_CHECKING, Self, TypedDict
 from urllib.parse import quote
 
 import requests
 
-from imapmanager.conf import ImapConf
 from imapmanager.constants import (
     DEFAULT_WEIGHT,
     ENCODING,
@@ -59,6 +57,9 @@ from imapmanager.utils import (
 
 if TYPE_CHECKING:
     from email.message import EmailMessage
+    from logging import Logger
+
+    from imapmanager.conf import ImapConf
 
 HTTP_CODE_SUCCESS = 200
 

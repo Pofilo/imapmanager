@@ -19,10 +19,10 @@ with this program. If not, see <http://www.gnu.org/licenses/>.
 from collections import UserDict
 from copy import deepcopy
 from json import dumps
-from logging import Logger
 from os import getenv
 from pathlib import Path
 from sys import exit as sys_exit
+from typing import TYPE_CHECKING
 
 from yaml import SafeLoader, load
 
@@ -48,6 +48,9 @@ from imapmanager.constants import (
     TELEGRAM_TOKEN_NAME,
     USERNAME_NAME,
 )
+
+if TYPE_CHECKING:
+    from logging import Logger
 
 
 class ImapConf(UserDict):

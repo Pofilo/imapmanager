@@ -19,7 +19,7 @@ with this program. If not, see <http://www.gnu.org/licenses/>.
 import logging
 from signal import SIGINT, SIGTERM, signal, strsignal
 from time import sleep
-from types import FrameType
+from typing import TYPE_CHECKING
 
 from imapmanager.conf import ImapConf
 from imapmanager.constants import (
@@ -27,6 +27,9 @@ from imapmanager.constants import (
     POLLING_INTERVAL_NAME,
 )
 from imapmanager.imap import Imap
+
+if TYPE_CHECKING:
+    from types import FrameType
 
 main_running = True
 
