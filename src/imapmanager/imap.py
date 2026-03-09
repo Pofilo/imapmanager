@@ -456,9 +456,10 @@ class Imap:
             )
 
         # Check if the mail has a 'from' rule
-        mail_from = raw_email[IMAP_FROM]
-        self.logger.debug('raw field from="%s"', mail_from)
-        mail_from = extract_and_sanitize_mail_addresses(mail_from)
+        mail_from: str | None = None
+        raw_from = raw_email[IMAP_FROM]
+        self.logger.debug('raw field from="%s"', raw_from)
+        mail_from = extract_and_sanitize_mail_addresses(raw_from)
         # The list can be empty after <extract_and_sanitize_mail_addresses>
         if mail_from:
             # We don't want to deal with multiple senders
@@ -475,7 +476,7 @@ class Imap:
         mail_to = extract_and_sanitize_mail_addresses(mail_to)
         # The list can be empty after <extract_and_sanitize_mail_addresses>
         if mail_to:
-            mail_dest = mail_dest + mail_to
+            mail_dest.extend(mail_to)
             all_actions.append(
                 self._analyse_filters_for_category(SECTION_DEST_NAME, IMAP_TO, mail_to)
             )
@@ -487,7 +488,7 @@ class Imap:
         mail_cc = extract_and_sanitize_mail_addresses(mail_cc)
         # The list can be empty after <extract_and_sanitize_mail_addresses>
         if mail_cc:
-            mail_dest = mail_dest + mail_cc
+            mail_dest.extend(mail_cc)
             all_actions.append(
                 self._analyse_filters_for_category(SECTION_DEST_NAME, IMAP_CC, mail_cc)
             )
@@ -505,7 +506,7 @@ class Imap:
 
     def _send_telegram_notification(self, message: str | None = None) -> None:
         """
-        Send msg is telegram section is defined in the configuration.
+        Send msg if telegram section is defined in the configuration.
         """
         if self.config.get(SECTION_TELEGRAM_NAME, {}):
             token = self.config[SECTION_TELEGRAM_NAME][TELEGRAM_TOKEN_NAME]
