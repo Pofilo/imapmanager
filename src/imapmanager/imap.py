@@ -265,6 +265,7 @@ class Imap:
         for num in data[0].split():
             num = str(int(num) - count)
 
+            mail_subject = ""
             mail_action = MailAction.create()
 
             # Fetch and process mail
@@ -313,7 +314,7 @@ class Imap:
             # Send the telegram notification if needed
             if mail_action["send_telegram"]:
                 self._send_telegram_notification(
-                    f'GET mail subject="{mail_subject}"'
+                    f'GET mail subject="{mail_subject}" '
                     f'from="{mail_action["mail_from"]}"'
                 )
 
