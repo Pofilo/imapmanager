@@ -74,6 +74,7 @@ filters:
     INBOX.folder1:
       - pattern: "mail1@domain.com"
         actions: [move]
+        weight: 100
 
   dest:
     INBOX.folder1:

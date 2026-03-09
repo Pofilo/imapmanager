@@ -35,6 +35,7 @@ SECTION_DEST_NAME = "dest"
 
 FILTER_PATTERN_NAME = "pattern"
 FILTER_ACTIONS_NAME = "actions"
+FILTER_WEIGHT_NAME = "weight"
 
 SECTION_TELEGRAM_NAME = "telegram"
 TELEGRAM_TOKEN_NAME = "token"  # noqa: S105 (hardcoded-password-string)
@@ -50,3 +51,4 @@ IMAP_CC = "cc"
 # DEFAULT VARIABLES
 DEFAULT_CONFIG_PATH = "/etc/imapmanager.conf.yml"
 ENCODING = "utf-8"
+DEFAULT_WEIGHT = 0

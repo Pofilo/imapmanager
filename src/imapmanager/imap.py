@@ -27,9 +27,11 @@ import requests
 
 from imapmanager.conf import ImapConf
 from imapmanager.constants import (
+    DEFAULT_WEIGHT,
     ENCODING,
     FILTER_ACTIONS_NAME,
     FILTER_PATTERN_NAME,
+    FILTER_WEIGHT_NAME,
     HOSTNAME_NAME,
     IMAP_BODY,
     IMAP_CC,
@@ -70,6 +72,7 @@ class MailAction(TypedDict):
     folder: str
     send_telegram: bool
     mark_as_read: bool
+    weight: int  # Weight of the matched rule (higher wins when multiple rules match)
 
     # ruff: noqa: FBT001 (boolean-type-hint-positional-argument)
     # ruff: noqa: FBT002 (boolean-default-value-positional-argument)
@@ -80,6 +83,7 @@ class MailAction(TypedDict):
         folder: str | None = None,
         send_telegram: bool = False,
         mark_as_read: bool = False,
+        weight: int = DEFAULT_WEIGHT,
     ) -> Self:
         """
         Create the dict with default values.
@@ -89,7 +93,46 @@ class MailAction(TypedDict):
             folder=folder,
             send_telegram=send_telegram,
             mark_as_read=mark_as_read,
+            weight=weight,
         )
+
+
+class MailActions:
+    """
+    List of every <MailAction> that matched a given mail.
+    Provides <get_best_action> for the rule with the best match.
+    """
+
+    def __init__(self, logger: Logger) -> None:
+        self.logger = logger
+        self._actions: list[MailAction] = []
+
+    def append(self, action: MailAction) -> None:
+        """
+        Add a matching MailAction if it was resolved.
+        """
+        if action["rule_name"] is not None:
+            self._actions.append(action)
+
+    def get_best_action(self) -> MailAction:
+        """
+        Return the <MailAction> for the highest-weight match.
+        Returns default MailAction when no rule matched.
+        """
+        if not self._actions:
+            self.logger.debug("No matches, return default")
+            return MailAction.create()
+
+        # stable sort (entries with same weight keep their insertion order in the list)
+        sorted_actions = sorted(self._actions, key=lambda m: m["weight"], reverse=True)
+        best_action = sorted_actions[0]
+        self.logger.debug(
+            "Best matching rule: rule=%s weight=%d (evaluated %d matches)",
+            best_action["rule_name"],
+            best_action["weight"],
+            len(sorted_actions),
+        )
+        return best_action
 
 
 # TODO(pofilo): reduce complexity
@@ -305,8 +348,8 @@ class Imap:
         """
         Check if at least one param of input_values is matching the given category
         by checking all its rules and filters.
-        If there is a match, the result is immediately returned.
-        The function stop searching after a first match.
+        All matching rules are collected and the one with the highest weight
+        is returned (same weight means first arrived).
         :param      config      the configuration where to get the info from
         :param      category    the configuration section corresponding to the category
                                 to check (SUBJECT, FROM, DEST, ...)
@@ -314,12 +357,12 @@ class Imap:
         :param      params      the values to check if one is present in the rule
         :return     result      result of type MailAction.
         """
-        mail_action = MailAction.create()
+        all_matches = MailActions(self.logger)
 
         # Get all rules for the category
         rules = self.config[SECTION_FILTERS_NAME].get(category)
         if not rules:
-            return mail_action
+            return MailAction.create()
 
         # A rule has a list of rule composed of rules and filters
         for target_folder, filter_entries in rules.items():
@@ -328,9 +371,14 @@ class Imap:
                 # For this filter, check if at least one input_values matches
                 # filter_entry looks like:
                 #   {pattern: '[SPAM]', actions: [move, mark_as_read]}
+                # An optional 'weight' can be found.
                 filter_pattern = filter_entry[FILTER_PATTERN_NAME]
                 if any(filter_pattern.lower() in inp.lower() for inp in input_values):
+                    mail_action = MailAction.create()
                     mail_action["rule_name"] = category_name
+                    mail_action["weight"] = filter_entry.get(
+                        FILTER_WEIGHT_NAME, DEFAULT_WEIGHT
+                    )
                     matched_actions = filter_entry[FILTER_ACTIONS_NAME]
 
                     # Filter matches, check what to do
@@ -342,39 +390,42 @@ class Imap:
                         mail_action["mark_as_read"] = True
 
                     self.logger.debug(
-                        "Got a match for category=%s filter_pattern=%s folder=%s",
+                        "Got a match for category=%s filter_pattern=%s folder=%s "
+                        "weight=%d",
                         category_name,
                         filter_pattern,
                         mail_action["folder"],
+                        mail_action["weight"],
                     )
-                    return mail_action
+                    all_matches.append(mail_action)
 
-        return mail_action
+        return all_matches.get_best_action()
 
     def _unsafe_process_one_email(
         self, raw_email: str, mail_subject: str, mail_body: str
-        rule_used = None
     ) -> MailAction:
-        mail_actions = MailAction.create()
+        all_actions = MailActions(self.logger)
         mail_dest = []
 
         # Check if the mail has a 'subject' rule
         if mail_subject:
-                SECTION_SUBJECT_NAME, IMAP_SUBJECT, [mail_subject]
-            mail_action = self._analyse_filters_for_category(
+            all_actions.append(
+                self._analyse_filters_for_category(
+                    SECTION_SUBJECT_NAME,
+                    IMAP_SUBJECT,
+                    [mail_subject],
+                )
             )
-                rule_used = IMAP_SUBJECT
-            if mail_action["rule_name"] is not None:
 
         # Check if the mail has a 'body' rule
-        if mail_body and not rule_used:
-            mail_action = self._analyse_filters_for_category(
-                SECTION_BODY_NAME, IMAP_BODY, [mail_body]
+        if mail_body:
+            all_actions.append(
+                self._analyse_filters_for_category(
+                    SECTION_BODY_NAME, IMAP_BODY, [mail_body]
+                )
             )
-                rule_used = IMAP_BODY
-            if mail_action["rule_name"] is not None:
 
-        # Check if the mail has a 'from' rule (only if no rules applied yet)
+        # Check if the mail has a 'from' rule
         mail_from = raw_email[IMAP_FROM]
         self.logger.debug('raw field from="%s"', mail_from)
         mail_from = extract_and_sanitize_mail_addresses(mail_from)
@@ -382,28 +433,24 @@ class Imap:
         if mail_from:
             # We don't want to deal with multiple senders
             mail_from = mail_from[0]
-            if not rule_used:
-                mail_action = self._analyse_filters_for_category(
+            all_actions.append(
+                self._analyse_filters_for_category(
                     SECTION_FROM_NAME, IMAP_FROM, [mail_from]
                 )
-                    rule_used = IMAP_FROM
-                if mail_action["rule_name"] is not None:
+            )
 
-        # Check if the mail has a 'to' rule (only if no rules applied yet)
+        # Check if the mail has a 'to' rule
         mail_to = raw_email[IMAP_TO]
         self.logger.debug('raw field to="%s"', mail_to)
         mail_to = extract_and_sanitize_mail_addresses(mail_to)
         # The list can be empty after <extract_and_sanitize_mail_addresses>
         if mail_to:
             mail_dest = mail_dest + mail_to
-            if not rule_used:
-                mail_action = self._analyse_filters_for_category(
-                    SECTION_DEST_NAME, IMAP_TO, mail_to
-                )
-                    rule_used = IMAP_TO
-                if mail_action["rule_name"] is not None:
+            all_actions.append(
+                self._analyse_filters_for_category(SECTION_DEST_NAME, IMAP_TO, mail_to)
+            )
 
-        # Check if the mail has a 'cc' rule (only if no rules applied yet)
+        # Check if the mail has a 'cc' rule
         # The values checked for the 'cc' rules are the ones of the 'to' rules
         mail_cc = raw_email[IMAP_CC]
         self.logger.debug('raw field cc="%s"', mail_cc)
@@ -411,12 +458,11 @@ class Imap:
         # The list can be empty after <extract_and_sanitize_mail_addresses>
         if mail_cc:
             mail_dest = mail_dest + mail_cc
-            if not rule_used:
-                mail_action = self._analyse_filters_for_category(
-                    SECTION_DEST_NAME, IMAP_CC, mail_cc
-                )
-                rule_used = IMAP_CC
-            if mail_action["rule_name"] is not None:
+            all_actions.append(
+                self._analyse_filters_for_category(SECTION_DEST_NAME, IMAP_CC, mail_cc)
+            )
+
+        mail_action = all_actions.get_best_action()
 
         # If we still don't have a rule for the mail, take the default folder
         if not mail_action["folder"]:
