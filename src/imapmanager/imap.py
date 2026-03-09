@@ -61,12 +61,12 @@ if TYPE_CHECKING:
 HTTP_CODE_SUCCESS = 200
 
 
-class MailActions(TypedDict):
+class MailAction(TypedDict):
     """
-    Represent all actions to perform after analysing all filters for a given category.
+    Represent what to perform on the mail.
     """
 
-    filter_used: bool  # True if a filter matches something
+    rule_name: str | None  # Name of the rule (None for no rule)
     folder: str
     send_telegram: bool
     mark_as_read: bool
@@ -76,7 +76,7 @@ class MailActions(TypedDict):
     @classmethod
     def create(
         cls,
-        filter_used: bool = False,
+        rule_name: str | None = None,
         folder: str | None = None,
         send_telegram: bool = False,
         mark_as_read: bool = False,
@@ -84,8 +84,8 @@ class MailActions(TypedDict):
         """
         Create the dict with default values.
         """
-        return MailActions(
-            filter_used=filter_used,
+        return MailAction(
+            rule_name=rule_name,
             folder=folder,
             send_telegram=send_telegram,
             mark_as_read=mark_as_read,
@@ -214,7 +214,7 @@ class Imap:
         for num in data[0].split():
             num = str(int(num) - count)
 
-            mail_actions = MailActions.create()
+            mail_action = MailAction.create()
 
             # Fetch and process mail
             try:
@@ -237,34 +237,34 @@ class Imap:
                 if mail_body:
                     mail_body = mail_body.get_content()
 
-                mail_actions = self._unsafe_process_one_email(
+                mail_action = self._unsafe_process_one_email(
                     mail_msg, mail_subject, mail_body
                 )
             except Exception:
-                mail_actions["folder"] = self._default_destination_folder
+                mail_action["folder"] = self._default_destination_folder
                 self.logger.exception(
                     'Error processing an email, moving it into folder="%s"',
-                    mail_actions["folder"],
+                    mail_action["folder"],
                 )
 
             # Check if the folder exists on the server
-            if not self._check_folder_exist_on_server(mail_actions["folder"]):
+            if not self._check_folder_exist_on_server(mail_action["folder"]):
                 self.logger.warning(
                     'folder="%s" does not exist on the server, moving the mail '
                     'into the default folder="%s"',
-                    mail_actions["folder"],
+                    mail_action["folder"],
                     self._default_destination_folder,
                 )
-                mail_actions["folder"] = self._default_destination_folder
-                if not self._check_folder_exist_on_server(mail_actions["folder"]):
+                mail_action["folder"] = self._default_destination_folder
+                if not self._check_folder_exist_on_server(mail_action["folder"]):
                     self.panic(
-                        f'default folder="{mail_actions["folder"]}" does not exist '
+                        f'default folder="{mail_action["folder"]}" does not exist '
                         "on the server, please fix the configuration, exiting..."
                     )
                     return
 
             # Mark the mail as read if needed
-            if mail_actions["mark_as_read"]:
+            if mail_action["mark_as_read"]:
                 typ, data = self._handler.store(num, "+FLAGS", "\\Seen")
                 if typ != "OK":
                     self.panic(
@@ -274,11 +274,11 @@ class Imap:
                     return
 
             # Copy the mail into the folder
-            typ, data = self._handler.copy(num, mail_actions["folder"])
+            typ, data = self._handler.copy(num, mail_action["folder"])
             if typ != "OK":
                 self.panic(
                     f'Mail with subject="{mail_subject}" not copied to '
-                    f'folder="{mail_actions["folder"]}" (data={data}), exiting...'
+                    f'folder="{mail_action["folder"]}" (data={data}), exiting...'
                 )
                 return
 
@@ -301,7 +301,7 @@ class Imap:
         category: str,
         category_name: str,
         input_values: list[str],
-    ) -> MailActions:
+    ) -> MailAction:
         """
         Check if at least one param of input_values is matching the given category
         by checking all its rules and filters.
@@ -312,14 +312,14 @@ class Imap:
                                 to check (SUBJECT, FROM, DEST, ...)
         :param      category_name   the name of the category (subject, from, to, cc, ..)
         :param      params      the values to check if one is present in the rule
-        :return     result      result of type MailActions.
+        :return     result      result of type MailAction.
         """
-        mail_actions = MailActions.create()
+        mail_action = MailAction.create()
 
         # Get all rules for the category
         rules = self.config[SECTION_FILTERS_NAME].get(category)
         if not rules:
-            return mail_actions
+            return mail_action
 
         # A rule has a list of rule composed of rules and filters
         for target_folder, filter_entries in rules.items():
@@ -330,49 +330,49 @@ class Imap:
                 #   {pattern: '[SPAM]', actions: [move, mark_as_read]}
                 filter_pattern = filter_entry[FILTER_PATTERN_NAME]
                 if any(filter_pattern.lower() in inp.lower() for inp in input_values):
-                    mail_actions["filter_used"] = True
+                    mail_action["rule_name"] = category_name
                     matched_actions = filter_entry[FILTER_ACTIONS_NAME]
 
-                    # Filter matches, check its actions
+                    # Filter matches, check what to do
                     if "move" in matched_actions:
-                        mail_actions["folder"] = target_folder
+                        mail_action["folder"] = target_folder
                     if "telegram" in matched_actions:
-                        mail_actions["send_telegram"] = True
+                        mail_action["send_telegram"] = True
                     if "mark_as_read" in matched_actions:
-                        mail_actions["mark_as_read"] = True
+                        mail_action["mark_as_read"] = True
 
                     self.logger.debug(
                         "Got a match for category=%s filter_pattern=%s folder=%s",
                         category_name,
                         filter_pattern,
-                        mail_actions["folder"],
+                        mail_action["folder"],
                     )
-                    return mail_actions
+                    return mail_action
 
-        return mail_actions
+        return mail_action
 
     def _unsafe_process_one_email(
         self, raw_email: str, mail_subject: str, mail_body: str
-    ) -> MailActions:
-        mail_actions = MailActions.create()
         rule_used = None
+    ) -> MailAction:
+        mail_actions = MailAction.create()
         mail_dest = []
 
         # Check if the mail has a 'subject' rule
         if mail_subject:
-            mail_actions = self._analyse_filters_for_category(
                 SECTION_SUBJECT_NAME, IMAP_SUBJECT, [mail_subject]
+            mail_action = self._analyse_filters_for_category(
             )
-            if mail_actions["filter_used"]:
                 rule_used = IMAP_SUBJECT
+            if mail_action["rule_name"] is not None:
 
         # Check if the mail has a 'body' rule
         if mail_body and not rule_used:
-            mail_actions = self._analyse_filters_for_category(
+            mail_action = self._analyse_filters_for_category(
                 SECTION_BODY_NAME, IMAP_BODY, [mail_body]
             )
-            if mail_actions["filter_used"]:
                 rule_used = IMAP_BODY
+            if mail_action["rule_name"] is not None:
 
         # Check if the mail has a 'from' rule (only if no rules applied yet)
         mail_from = raw_email[IMAP_FROM]
@@ -383,11 +383,11 @@ class Imap:
             # We don't want to deal with multiple senders
             mail_from = mail_from[0]
             if not rule_used:
-                mail_actions = self._analyse_filters_for_category(
+                mail_action = self._analyse_filters_for_category(
                     SECTION_FROM_NAME, IMAP_FROM, [mail_from]
                 )
-                if mail_actions["filter_used"]:
                     rule_used = IMAP_FROM
+                if mail_action["rule_name"] is not None:
 
         # Check if the mail has a 'to' rule (only if no rules applied yet)
         mail_to = raw_email[IMAP_TO]
@@ -397,11 +397,11 @@ class Imap:
         if mail_to:
             mail_dest = mail_dest + mail_to
             if not rule_used:
-                mail_actions = self._analyse_filters_for_category(
+                mail_action = self._analyse_filters_for_category(
                     SECTION_DEST_NAME, IMAP_TO, mail_to
                 )
-                if mail_actions["filter_used"]:
                     rule_used = IMAP_TO
+                if mail_action["rule_name"] is not None:
 
         # Check if the mail has a 'cc' rule (only if no rules applied yet)
         # The values checked for the 'cc' rules are the ones of the 'to' rules
@@ -412,16 +412,16 @@ class Imap:
         if mail_cc:
             mail_dest = mail_dest + mail_cc
             if not rule_used:
-                mail_actions = self._analyse_filters_for_category(
+                mail_action = self._analyse_filters_for_category(
                     SECTION_DEST_NAME, IMAP_CC, mail_cc
                 )
-            if mail_actions["filter_used"]:
                 rule_used = IMAP_CC
+            if mail_action["rule_name"] is not None:
 
         # If we still don't have a rule for the mail, take the default folder
-        if not mail_actions["folder"]:
+        if not mail_action["folder"]:
             self.logger.debug("No rule for the mail, moving it into the default folder")
-            mail_actions["folder"] = self._default_destination_folder
+            mail_action["folder"] = self._default_destination_folder
 
         self.logger.info(
             'GET mail subject="%s" from="%s" dest="%s" to be moved into "%s" '
@@ -429,19 +429,19 @@ class Imap:
             mail_subject,
             mail_from,
             mail_dest,
-            mail_actions["folder"],
-            mail_actions["send_telegram"],
-            mail_actions["mark_as_read"],
-            rule_used,
+            mail_action["folder"],
+            mail_action["send_telegram"],
+            mail_action["mark_as_read"],
+            mail_action["rule_name"],
         )
 
         # Send the telegram notification if needed
-        if mail_actions["send_telegram"]:
+        if mail_action["send_telegram"]:
             self._send_telegram_notification(
                 f'GET mail subject="{mail_subject}" from="{mail_from}"'
             )
 
-        return mail_actions
+        return mail_action
 
     def _send_telegram_notification(self, message: str | None = None) -> None:
         """
