@@ -58,15 +58,23 @@ Folders of a mailbox can be listed by using the script `list-folders`.
 
 ## Development
 
+Install "pre-commit" hook: `ln -s $(pwd)/hook-pre-commit .git/hooks/pre-commit`.
+Linters and typos will be checked before committing.
+
+### Linters
+
 + Install dependencies: `pip install .[linters]`
 + Run linters:
 
-```
+```bash
 ruff format --diff
 ruff check
 ```
 
-+ Install "pre-commit" hook: `ln -s $(pwd)/hook-pre-commit .git/hooks/pre-commit`
+### Typos
+
++ Install [typos](https://github.com/crate-ci/typos)
++ Run it: `typos`
 
 ## License
 

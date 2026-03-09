@@ -9,7 +9,7 @@ of the GNU General Public License as published by the Free Software Foundation, 
 version 3 of the License, or (at your option) any later version.
 
 This program is distributed in the hope that it will be useful, but
-WITHOUT ANYWARRANTY; without even the implied warranty of MERCHANTABILITY or
+WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
 FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along
@@ -24,7 +24,7 @@ USERNAME_NAME = "username"
 PASSWORD_NAME = "password"  # noqa: S105 (hardcoded-password-string)
 MAILBOX_NAME = "mailbox"
 POLLING_INTERVAL_NAME = "pollingInterval"
-IMAP_DEFAULT_FOLDER_NAME = "defaulFolder"
+IMAP_DEFAULT_FOLDER_NAME = "defaultFolder"
 LOG_LEVEL_NAME = "logLevel"
 
 SECTION_FILTERS_NAME = "filters"

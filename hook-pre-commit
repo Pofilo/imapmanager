@@ -51,13 +51,22 @@ fi
 set -e
 
 CMD="ruff format --diff"
-echo "===== Running =====\n${CMD}"
+echo "===== Running ====="
+echo "${CMD}"
 echo "==================="
 eval "${CMD}"
 echo "======= End ======="
 
 CMD="ruff check"
-echo "===== Running =====\n${CMD}"
+echo "===== Running ====="
+echo "${CMD}"
+echo "==================="
+eval "${CMD}"
+echo "======= End ======="
+
+CMD="typos"
+echo "===== Running ====="
+echo "${CMD}"
 echo "==================="
 eval "${CMD}"
 echo "======= End ======="

@@ -9,7 +9,7 @@ of the GNU General Public License as published by the Free Software Foundation, 
 version 3 of the License, or (at your option) any later version.
 
 This program is distributed in the hope that it will be useful, but
-WITHOUT ANYWARRANTY; without even the implied warranty of MERCHANTABILITY or
+WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
 FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along
@@ -42,13 +42,13 @@ logger = logging.getLogger("imapmanager")
 
 def signal_handler(signal_value: int, _frame: FrameType) -> None:
     """
-    Treat signals catched.
-    If a signal is catched, <running> is set to False and the main loop will exit soon.
-    :param  signal_value        the value of the signal catched
+    Treat signals caught.
+    If a signal is caught, <running> is set to False and the main loop will exit soon.
+    :param  signal_value        the value of the signal caught
     :param  frame               unused (needed because of the signal API).
     """
     global main_running  # noqa: PLW0603 (global-statement)
-    logger.info("Signal %s catched, stopping...", strsignal(signal_value))
+    logger.info("Signal %s caught, stopping...", strsignal(signal_value))
     main_running = False
 
 

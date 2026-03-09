@@ -9,7 +9,7 @@ of the GNU General Public License as published by the Free Software Foundation, 
 version 3 of the License, or (at your option) any later version.
 
 This program is distributed in the hope that it will be useful, but
-WITHOUT ANYWARRANTY; without even the implied warranty of MERCHANTABILITY or
+WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
 FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along
@@ -172,7 +172,7 @@ class Imap:
         self._connect()
 
         logger.info(
-            "imapmanager initialized with on %s with %s", self._hostname, self._username
+            "imapmanager initialized on %s with %s", self._hostname, self._username
         )
 
     def _connect(self) -> bool:
@@ -216,7 +216,7 @@ class Imap:
     def _check_folder_exist_on_server(self, folder_name: str) -> bool:
         r"""
         Check that the given folder exists on the server.
-        Folder on the server looks like (with a baskslash removed):
+        Folder on the server looks like (with a backslash removed):
             (\\HasNoChildren) "." "INBOX.spam"
             (\\HasNoChildren) "." INBOX.spam
         :param      folder_name         the name of the folder to check
@@ -257,7 +257,7 @@ class Imap:
             self.logger.exception("Failed to search")
             return
 
-        # Counter of the number of mails proccessed
+        # Counter of the number of mails processed
         count = 0
 
         # This for loop is called with index 0 even if there is multiple mails because
@@ -269,7 +269,7 @@ class Imap:
 
             # Fetch and process mail
             try:
-                # See the mail without changing his unread flag
+                # See the mail without changing its unread flag
                 typ, data = self._handler.fetch(num, "(BODY.PEEK[])")
                 if typ != "OK":
                     self.panic(
@@ -339,7 +339,7 @@ class Imap:
                 if typ != "OK":
                     self.panic(
                         f'Fail to mark mail with subject="{mail_subject}" as read '
-                        f"(data=%s), exiting..."
+                        f"(data={data}), exiting..."
                     )
                     return
 
@@ -377,12 +377,10 @@ class Imap:
         by checking all its rules and filters.
         All matching rules are collected and the one with the highest weight
         is returned (same weight means first arrived).
-        :param      config      the configuration where to get the info from
-        :param      category    the configuration section corresponding to the category
-                                to check (SUBJECT, FROM, DEST, ...)
+        :param      category    the config section to check (SUBJECT, FROM, DEST, ...)
         :param      category_name   the name of the category (subject, from, to, cc, ..)
-        :param      params      the values to check if one is present in the rule
-        :return     result      result of type MailAction.
+        :param      input_values    the values to check against the rule patterns
+        :return     result  result of type MailAction.
         """
         all_matches = MailActions(self.logger)
 

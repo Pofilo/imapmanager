@@ -28,7 +28,7 @@ mailbox: INBOX
 pollingInterval: 10
 # If a mail has no rule (no subject nor from nor to rules),
 # it will be moved in this one.
-defaulFolder: INBOX.others
+defaultFolder: INBOX.others
 # FATAL, ERROR, WARN, INFO, DEBUG
 logLevel: INFO
 
