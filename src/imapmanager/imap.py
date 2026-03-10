@@ -17,9 +17,10 @@ with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
 import email
+from dataclasses import dataclass, field
 from email import policy
 from imaplib import IMAP4_SSL
-from typing import TYPE_CHECKING, Self, TypedDict
+from typing import TYPE_CHECKING
 from urllib.parse import quote
 
 import requests
@@ -64,45 +65,19 @@ if TYPE_CHECKING:
 HTTP_CODE_SUCCESS = 200
 
 
-class MailAction(TypedDict):
+@dataclass
+class MailAction:
     """
     Represent what to perform on the mail.
     """
 
-    rule_name: str | None  # Name of the rule (None for no rule)
-    folder: str
-    send_telegram: bool
-    mark_as_read: bool
-    weight: int  # Weight of the matched rule (higher wins when multiple rules match)
-    mail_from: str | None
-    mail_dest: list[str] | None
-
-    # ruff: noqa: FBT001 (boolean-type-hint-positional-argument)
-    # ruff: noqa: FBT002 (boolean-default-value-positional-argument)
-    # ruff: noqa: PLR0913 (too-many-arguments)
-    @classmethod
-    def create(
-        cls,
-        rule_name: str | None = None,
-        folder: str | None = None,
-        send_telegram: bool = False,
-        mark_as_read: bool = False,
-        weight: int = DEFAULT_WEIGHT,
-        mail_from: str | None = None,
-        mail_dest: list[str] | None = None,
-    ) -> Self:
-        """
-        Create the dict with default values.
-        """
-        return MailAction(
-            rule_name=rule_name,
-            folder=folder,
-            send_telegram=send_telegram,
-            mark_as_read=mark_as_read,
-            weight=weight,
-            mail_from=mail_from,
-            mail_dest=mail_dest,
-        )
+    rule_name: str | None = None  # Name of the rule (None for no rule)
+    folder: str | None = None
+    send_telegram: bool = False
+    mark_as_read: bool = False
+    weight: int = DEFAULT_WEIGHT  # Higher wins when multiple rules match
+    mail_from: str | None = None
+    mail_dest: list[str] = field(default_factory=list)
 
 
 class MailActions:
@@ -119,7 +94,7 @@ class MailActions:
         """
         Add a matching MailAction if it was resolved.
         """
-        if action["rule_name"] is not None:
+        if action.rule_name is not None:
             self._actions.append(action)
 
     def get_best_action(self) -> MailAction:
@@ -129,15 +104,15 @@ class MailActions:
         """
         if not self._actions:
             self.logger.debug("No matches, return default")
-            return MailAction.create()
+            return MailAction()
 
         # stable sort (entries with same weight keep their insertion order in the list)
-        sorted_actions = sorted(self._actions, key=lambda m: m["weight"], reverse=True)
+        sorted_actions = sorted(self._actions, key=lambda m: m.weight, reverse=True)
         best_action = sorted_actions[0]
         self.logger.debug(
             "Best matching rule: rule=%s weight=%d (evaluated %d matches)",
-            best_action["rule_name"],
-            best_action["weight"],
+            best_action.rule_name,
+            best_action.weight,
             len(sorted_actions),
         )
         return best_action
@@ -266,7 +241,7 @@ class Imap:
             num = str(int(num) - count)
 
             mail_subject = ""
-            mail_action = MailAction.create()
+            mail_action = MailAction()
 
             # Fetch and process mail
             try:
@@ -293,49 +268,48 @@ class Imap:
                     mail_msg, mail_subject, mail_body
                 )
             except Exception:
-                mail_action["folder"] = self._default_destination_folder
+                mail_action.folder = self._default_destination_folder
                 self.logger.exception(
                     'Error processing an email, moving it into folder="%s"',
-                    mail_action["folder"],
+                    mail_action.folder,
                 )
 
             self.logger.info(
                 'GET mail subject="%s" from="%s" dest="%s" to be moved into "%s" '
                 "(telegram=%s, mark_as_read=%s, rule=%s)",
                 mail_subject,
-                mail_action["mail_from"],
-                mail_action["mail_dest"],
-                mail_action["folder"],
-                mail_action["send_telegram"],
-                mail_action["mark_as_read"],
-                mail_action["rule_name"],
+                mail_action.mail_from,
+                mail_action.mail_dest,
+                mail_action.folder,
+                mail_action.send_telegram,
+                mail_action.mark_as_read,
+                mail_action.rule_name,
             )
 
             # Send the telegram notification if needed
-            if mail_action["send_telegram"]:
+            if mail_action.send_telegram:
                 self._send_telegram_notification(
-                    f'GET mail subject="{mail_subject}" '
-                    f'from="{mail_action["mail_from"]}"'
+                    f'GET mail subject="{mail_subject}" from="{mail_action.mail_from}"'
                 )
 
             # Check if the folder exists on the server
-            if not self._check_folder_exist_on_server(mail_action["folder"]):
+            if not self._check_folder_exist_on_server(mail_action.folder):
                 self.logger.warning(
                     'folder="%s" does not exist on the server, moving the mail '
                     'into the default folder="%s"',
-                    mail_action["folder"],
+                    mail_action.folder,
                     self._default_destination_folder,
                 )
-                mail_action["folder"] = self._default_destination_folder
-                if not self._check_folder_exist_on_server(mail_action["folder"]):
+                mail_action.folder = self._default_destination_folder
+                if not self._check_folder_exist_on_server(mail_action.folder):
                     self.panic(
-                        f'default folder="{mail_action["folder"]}" does not exist '
+                        f'default folder="{mail_action.folder}" does not exist '
                         "on the server, please fix the configuration, exiting..."
                     )
                     return
 
             # Mark the mail as read if needed
-            if mail_action["mark_as_read"]:
+            if mail_action.mark_as_read:
                 typ, data = self._handler.store(num, "+FLAGS", "\\Seen")
                 if typ != "OK":
                     self.panic(
@@ -345,11 +319,11 @@ class Imap:
                     return
 
             # Copy the mail into the folder
-            typ, data = self._handler.copy(num, mail_action["folder"])
+            typ, data = self._handler.copy(num, mail_action.folder)
             if typ != "OK":
                 self.panic(
                     f'Mail with subject="{mail_subject}" not copied to '
-                    f'folder="{mail_action["folder"]}" (data={data}), exiting...'
+                    f'folder="{mail_action.folder}" (data={data}), exiting...'
                 )
                 return
 
@@ -400,28 +374,22 @@ class Imap:
                 # An optional 'weight' can be found.
                 filter_pattern = filter_entry[FILTER_PATTERN_NAME]
                 if any(filter_pattern.lower() in inp.lower() for inp in input_values):
-                    mail_action = MailAction.create()
-                    mail_action["rule_name"] = category_name
-                    mail_action["weight"] = filter_entry.get(
-                        FILTER_WEIGHT_NAME, DEFAULT_WEIGHT
-                    )
                     matched_actions = filter_entry[FILTER_ACTIONS_NAME]
-
-                    # Filter matches, check what to do
-                    if "move" in matched_actions:
-                        mail_action["folder"] = target_folder
-                    if "telegram" in matched_actions:
-                        mail_action["send_telegram"] = True
-                    if "mark_as_read" in matched_actions:
-                        mail_action["mark_as_read"] = True
+                    mail_action = MailAction(
+                        rule_name=category_name,
+                        weight=filter_entry.get(FILTER_WEIGHT_NAME, DEFAULT_WEIGHT),
+                        folder=target_folder if "move" in matched_actions else None,
+                        send_telegram="telegram" in matched_actions,
+                        mark_as_read="mark_as_read" in matched_actions,
+                    )
 
                     self.logger.debug(
                         "Got a match for category=%s filter_pattern=%s folder=%s "
                         "weight=%d",
                         category_name,
                         filter_pattern,
-                        mail_action["folder"],
-                        mail_action["weight"],
+                        mail_action.folder,
+                        mail_action.weight,
                     )
                     all_matches.append(mail_action)
 
@@ -494,13 +462,13 @@ class Imap:
             )
 
         mail_action = all_actions.get_best_action()
-        mail_action["mail_from"] = mail_from
-        mail_action["mail_dest"] = mail_dest
+        mail_action.mail_from = mail_from
+        mail_action.mail_dest = mail_dest
 
         # If we still don't have a rule for the mail, take the default folder
-        if not mail_action["folder"]:
+        if not mail_action.folder:
             self.logger.debug("No rule for the mail, moving it into the default folder")
-            mail_action["folder"] = self._default_destination_folder
+            mail_action.folder = self._default_destination_folder
 
         return mail_action
 
