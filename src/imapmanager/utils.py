@@ -50,4 +50,4 @@ def decode_subject(subject: str) -> str:
     if not subject:
         return None
 
-    return str(make_header(decode_header(subject)))
+    return str(make_header(decode_header(subject))).replace("\n", " ")

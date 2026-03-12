@@ -361,6 +361,7 @@ class Imap:
         :param      input_values    the values to check against the rule patterns
         :return     result  result of type MailAction.
         """
+        self.logger.debug("starting analysis of category %s", category_name)
         all_matches = MailActions(self.logger)
 
         # Get all rules for the category
