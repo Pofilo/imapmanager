@@ -64,6 +64,6 @@ docs/_build/
 # PyBuilder
 target/
 
-*imapmanager.conf
-*imapmanager.conf.yml
+*imapmanager*.conf
+*imapmanager*.conf.yml
 *.code-workspace
