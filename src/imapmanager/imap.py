@@ -266,7 +266,24 @@ class Imap:
                     preferencelist=("plain", "html")
                 )
                 if mail_body:
-                    mail_body = mail_body.get_content()
+                    try:
+                        mail_body = mail_body.get_content()
+                    except LookupError:
+                        # Encoding error, fallback to raw payload decoding.
+                        raw = mail_body.get_payload(decode=True)
+                        if raw is not None:
+                            charset = mail_body.get_content_charset("utf-8")
+                            try:
+                                mail_body = raw.decode(charset, errors="replace")
+                            except LookupError:
+                                try:
+                                    mail_body = raw.decode("utf-8", errors="replace")
+                                except LookupError:
+                                    # Give up with the mail
+                                    self.logger.warning("Impossible to decode the body")
+                                    mail_body = None
+                        else:
+                            mail_body = None
 
                 mail_action = self._unsafe_get_mail_action(
                     mail_msg, mail_subject, mail_body
