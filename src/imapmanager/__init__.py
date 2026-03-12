@@ -18,7 +18,7 @@ with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import logging
 from signal import SIGINT, SIGTERM, signal, strsignal
-from time import sleep
+from threading import Event
 from typing import TYPE_CHECKING
 
 from imapmanager.conf import ImapConf
@@ -31,7 +31,7 @@ from imapmanager.imap import Imap
 if TYPE_CHECKING:
     from types import FrameType
 
-main_running = True
+stop_event = Event()
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -47,16 +47,14 @@ def signal_handler(signal_value: int, _frame: FrameType) -> None:
     :param  signal_value        the value of the signal caught
     :param  frame               unused (needed because of the signal API).
     """
-    global main_running  # noqa: PLW0603 (global-statement)
     logger.info("Signal %s caught, stopping...", strsignal(signal_value))
-    main_running = False
+    stop_event.set()
 
 
 def main() -> None:
     """
     Start the imapmanager and remain in the while loop.
     """
-    global main_running  # noqa: PLW0603 (global-statement)
     logger.info("Starting imapmanager...")
 
     # INIT
@@ -74,17 +72,15 @@ def main() -> None:
     polling_interval = config.get(POLLING_INTERVAL_NAME)
 
     # MAIN LOOP
-    while main_running:
-        imap.process_mails()
+    while not stop_event.is_set():
+        imap.process_mails(stop_event)
 
         # Maybe the imap process needs to stop
         if not imap.running:
             logger.info("imap process not running, stopping...")
-            main_running = False
+            stop_event.set()
 
-        # If signal occurs during process, there is no need to sleep
-        if main_running:
-            sleep(float(polling_interval))
+        stop_event.wait(timeout=float(polling_interval))
 
     # ENDING
     imap.logout()

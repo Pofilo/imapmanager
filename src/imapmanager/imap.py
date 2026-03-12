@@ -59,6 +59,7 @@ from imapmanager.utils import (
 if TYPE_CHECKING:
     from email.message import EmailMessage
     from logging import Logger
+    from threading import Event
 
     from imapmanager.conf import ImapConf
 
@@ -123,6 +124,7 @@ class MailActions:
 # ruff: noqa: C901  (complex-structure)
 # ruff: noqa: PLR0911 (too-many-return-statements)
 # ruff: noqa: PLR0912 (too-many-branches)
+# ruff: noqa: PLR0915 (too-many-statements)
 # ruff: noqa: PLW2901 (redefined-loop-name)
 # ruff: noqa: SIM113 (enumerate-for-loop)
 class Imap:
@@ -204,7 +206,7 @@ class Imap:
             for folder_server in list_folders[1]
         )
 
-    def process_mails(self) -> None:
+    def process_mails(self, stop_event: Event) -> None:
         """
         Process all mails mark as UNREAD in the mailbox.
         """
@@ -238,6 +240,8 @@ class Imap:
         # This for loop is called with index 0 even if there is multiple mails because
         # the mail is supposed to move in the end.
         for num in data[0].split():
+            if stop_event.is_set():
+                return
             num = str(int(num) - count)
 
             mail_subject = ""
