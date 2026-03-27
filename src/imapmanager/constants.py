@@ -26,6 +26,7 @@ MAILBOX_NAME = "mailbox"
 POLLING_INTERVAL_NAME = "pollingInterval"
 IMAP_DEFAULT_FOLDER_NAME = "defaultFolder"
 LOG_LEVEL_NAME = "logLevel"
+WEIGHT_NAME = "weight"
 
 SECTION_FILTERS_NAME = "filters"
 SECTION_SUBJECT_NAME = "subject"
@@ -35,7 +36,7 @@ SECTION_DEST_NAME = "dest"
 
 FILTER_PATTERN_NAME = "pattern"
 FILTER_ACTIONS_NAME = "actions"
-FILTER_WEIGHT_NAME = "weight"
+FILTER_WEIGHT_NAME = WEIGHT_NAME
 
 SECTION_TELEGRAM_NAME = "telegram"
 TELEGRAM_TOKEN_NAME = "token"  # noqa: S105 (hardcoded-password-string)

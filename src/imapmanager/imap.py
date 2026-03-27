@@ -50,6 +50,7 @@ from imapmanager.constants import (
     TELEGRAM_CHAT_ID_NAME,
     TELEGRAM_TOKEN_NAME,
     USERNAME_NAME,
+    WEIGHT_NAME,
 )
 from imapmanager.utils import (
     decode_subject,
@@ -399,7 +400,10 @@ class Imap:
                     matched_actions = filter_entry[FILTER_ACTIONS_NAME]
                     mail_action = MailAction(
                         rule_name=category_name,
-                        weight=filter_entry.get(FILTER_WEIGHT_NAME, DEFAULT_WEIGHT),
+                        weight=filter_entry.get(
+                            FILTER_WEIGHT_NAME,
+                            self.config.get(WEIGHT_NAME, DEFAULT_WEIGHT),
+                        ),
                         folder=target_folder if "move" in matched_actions else None,
                         send_telegram="telegram" in matched_actions,
                         mark_as_read="mark_as_read" in matched_actions,

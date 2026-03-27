@@ -31,6 +31,8 @@ pollingInterval: 10
 defaultFolder: INBOX.others
 # FATAL, ERROR, WARN, INFO, DEBUG
 logLevel: INFO
+# Default weight. Any filter can override this value (optional: default value is 0)
+# weight: 0
 
 #########################
 #        FILTERS        #
