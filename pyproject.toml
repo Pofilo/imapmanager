@@ -57,6 +57,7 @@ ignore = [
     "FIX002",  # line-contains-todo
     # Disagree with those rules
     "UP015",  # redundant-open-modes
+    "TRY400",  # error-instead-of-exception
     # False positives
     "ERA001",  # commented-out-code
     # "The following rules may cause conflicts when used with the formatter"

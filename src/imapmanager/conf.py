@@ -87,8 +87,8 @@ class ImapConf(UserDict):
                             conf[SECTION_TELEGRAM_NAME][TELEGRAM_TOKEN_NAME] = "*****"
                             conf[SECTION_TELEGRAM_NAME][TELEGRAM_CHAT_ID_NAME] = "*****"
                         self.logger.debug("conf used:\n%s", dumps(conf, indent=2))
-            except Exception:
-                self.logger.exception("Parsing while reading conf")
+            except Exception as exc:  # noqa: BLE001 (blind-except)
+                self.logger.error("Parsing while reading conf: %s", exc)
                 sys_exit(1)
         else:
             self.logger.critical(
