@@ -67,7 +67,7 @@ def main() -> None:
     for module in ("requests", "urllib3"):
         logging.getLogger(module).setLevel(log_level)
 
-    imap = Imap(logger, config)
+    imap = Imap(logger, config, stop_event)
 
     polling_interval = config.get(POLLING_INTERVAL_NAME)
 

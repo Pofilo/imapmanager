@@ -17,9 +17,10 @@ with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
 import email
+import ssl
 from dataclasses import dataclass, field
 from email import policy
-from imaplib import IMAP4_SSL
+from imaplib import IMAP4, IMAP4_SSL
 from typing import TYPE_CHECKING
 from urllib.parse import quote
 
@@ -65,6 +66,12 @@ if TYPE_CHECKING:
     from imapmanager.conf import ImapConf
 
 HTTP_CODE_SUCCESS = 200
+
+# Reconnection backoff on transient connection/SSL errors.
+RECONNECT_INITIAL_DELAY = 5  # seconds
+RECONNECT_MAX_DELAY = 300  # seconds (cap)
+RECONNECT_MULTIPLIER = 2
+RECONNECT_MAX_AUTH_ATTEMPTS = 5  # IMAP4.error (login) tolerated before giving up
 
 
 @dataclass
@@ -138,6 +145,7 @@ class Imap:
         self,
         logger: Logger,
         config: ImapConf,
+        stop_event: Event,
     ) -> None:
         self.logger = logger
         self._hostname = config.get(HOSTNAME_NAME)
@@ -146,49 +154,83 @@ class Imap:
         self._handler: IMAP4_SSL = None
         self.config = config
         self.running = False
+        self._stop_event = stop_event
 
-        self._connect()
+        self._connect_with_retry()
 
         logger.info(
             "imapmanager initialized on %s with %s", self._hostname, self._username
         )
 
-    def _connect(self) -> bool:
+    def _connect(self) -> None:
         """
-        Connect and select the mailbox.
-        # TODO: do not exit but manage errors properly.
-        :return     True if the connection is successful, exit otherwise.
+        Perform a single connection attempt and select the mailbox.
+        Raise on any failure.
         """
-        try:
-            # Connect to the mail account
-            self._handler = IMAP4_SSL(self._hostname, self.config.get(PORT_NAME))
-            self._handler.login(self._username, self.config.get(PASSWORD_NAME))
-            self.logger.info("Successful connection as username=%s", self._username)
-        except Exception as exc:  # noqa: BLE001 (blind-except)
-            # TODO(pofilo): maybe some retries could be made
-            # 030
-            self.panic(f"Failed to login: err={exc}")
-            return False
-
-        self._handler.select(self.config.get(MAILBOX_NAME))
+        handler = IMAP4_SSL(self._hostname, self.config.get(PORT_NAME))
+        handler.login(self._username, self.config.get(PASSWORD_NAME))
+        handler.select(self.config.get(MAILBOX_NAME))
+        self._handler = handler  # affect the successful handler
         self.running = True
-        return True
+        self.logger.info("Successful connection as username=%s", self._username)
+
+    def _connect_with_retry(self) -> bool:
+        """
+        Try to connect, retrying transient failures with exponential backoff.
+        Network/SSL errors are retried forever (wait out the outage)
+        Other errors (like login/auth errors) are retried before treated as fatal.
+        :return     True if the connection is successful, False otherwise.
+        """
+        attempt = 0
+        auth_failures = 0
+        delay = RECONNECT_INITIAL_DELAY
+        while not self._stop_event.is_set():
+            try:
+                self._connect()
+            # IMAP4.abort -> Service errors
+            # Socket abort / TLS handshake / network errors -> transient.
+            except (IMAP4.abort, ssl.SSLError, OSError) as exc:
+                reason = exc
+            except IMAP4.error as exc:  # -> Logical errors (login/auth etc...)
+                auth_failures += 1
+                if auth_failures >= RECONNECT_MAX_AUTH_ATTEMPTS:
+                    self.panic(f"Login keeps failing: err={exc}")
+                    return False
+                reason = exc
+            else:
+                return True
+
+            self._handler = None
+            attempt += 1
+            self.logger.warning(
+                "Connection attempt %d failed, retrying in %ds: err=%s",
+                attempt,
+                delay,
+                reason,
+            )
+
+            if self._stop_event.wait(timeout=delay):
+                return False
+            delay = min(delay * RECONNECT_MULTIPLIER, RECONNECT_MAX_DELAY)
+        return False
 
     def _maybe_reconnect(self) -> bool:
         """
         If handler is not connected yet or disconnected, reconnect it.
         :return     True if the connection is successful, False otherwise.
         """
+        if self._handler is None:
+            return self._connect_with_retry()
         try:
             if self._handler.check():
                 return True
         except Exception as exc:  # noqa: BLE001 (blind-except)
-            self.running = False
             self.logger.warning(
                 "Check connection failed, trying to reconnect: err=%s",
                 exc,
             )
-            return self._connect()
+            self._handler = None
+            return self._connect_with_retry()
         return False
 
     def _check_folder_exist_on_server(self, folder_name: str) -> bool:
@@ -533,17 +575,27 @@ class Imap:
 
         self.logout()
 
+        # As panic is fatal: stop the daemon.
+        self._stop_event.set()
+
     def logout(self) -> None:
         """
         Logout and close the mail handler.
         """
-        # Close and logout the connection
-        if self._handler:
+        if not self._handler:
+            return
+
+        # CLOSE is only valid in the SELECTED state.
+        if getattr(self._handler, "state", None) == "SELECTED":
             try:
                 self._handler.close()
-                self._handler.logout()
-                self.logger.info("Successful disconnection")
-            except Exception:
-                self.logger.exception("Failed to close/logout")
-            finally:
-                self._handler = None
+            except Exception as exc:  # noqa: BLE001 (blind-except)
+                self.logger.warning("Failed to close mailbox: err=%s", exc)
+
+        try:
+            self._handler.logout()
+            self.logger.info("Successful disconnection")
+        except Exception as exc:  # noqa: BLE001 (blind-except)
+            self.logger.warning("Failed to logout: err=%s", exc)
+        finally:
+            self._handler = None
