@@ -542,7 +542,8 @@ class Imap:
             try:
                 self._handler.close()
                 self._handler.logout()
-                self._handler = None
                 self.logger.info("Successful disconnection")
             except Exception:
                 self.logger.exception("Failed to close/logout")
+            finally:
+                self._handler = None

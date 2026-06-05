@@ -46,15 +46,6 @@ logLevel: INFO
 # Each filter is composed of the key (what to analyse) and a list of actions.
 # A mail will be moved if the one filter (between quotes) is part of the field of the mail.
 #
-# Example:
-# filters:  -> name of the section
-#   subject:  -> name of the category
-#     INBOX.spamFolder:  -> name of the destination folder
-#       - "[SPAM]": [move]  -> (1)
-#       - "*** SPAM ***": [move]
-# (1) -> "[SPAM]": what to check in the mail according to the category
-# (1) -> [move]: list of actions if mail and filter matches
-#
 
 filters:
   subject:
