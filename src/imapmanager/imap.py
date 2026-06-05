@@ -427,7 +427,7 @@ class Imap:
         # Get all rules for the category
         rules = self.config[SECTION_FILTERS_NAME].get(category)
         if not rules:
-            return MailAction.create()
+            return MailAction()
 
         # A rule has a list of rule composed of rules and filters
         for target_folder, filter_entries in rules.items():
