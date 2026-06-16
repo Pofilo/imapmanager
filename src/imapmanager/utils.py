@@ -39,8 +39,8 @@ def extract_and_sanitize_mail_addresses(addresses: str) -> list[str]:
     regex = r"([\w0-9._+-]+@[\w0-9._-]+\.[\w0-9_-]+)"
     # Extract all mail address in a list
     addresses = re.findall(regex, addresses, re.MULTILINE | re.IGNORECASE)
-    # Lower each mail address
-    return [x.lower() for x in addresses]
+    # Lower-case each address, keeping input order and dropping duplicates
+    return list(dict.fromkeys(x.lower() for x in addresses))
 
 
 def decode_subject(subject: str) -> str:
