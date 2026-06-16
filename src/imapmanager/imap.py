@@ -169,7 +169,7 @@ class Imap:
         """
         handler = IMAP4_SSL(self._hostname, self.config.get(PORT_NAME))
         handler.login(self._username, self.config.get(PASSWORD_NAME))
-        handler.select(self.config.get(MAILBOX_NAME))
+        handler.select(f'"{self.config.get(MAILBOX_NAME)}"')
         self._handler = handler  # affect the successful handler
         self.running = True
         self.logger.info("Successful connection as username=%s", self._username)
@@ -262,7 +262,7 @@ class Imap:
 
         try:
             # Go into the mailbox
-            self._handler.select(mailbox)
+            self._handler.select(f'"{mailbox}"')
         except Exception:
             self.logger.exception("Failed to select")
             return
@@ -383,7 +383,7 @@ class Imap:
                     return
 
             # Copy the mail into the folder
-            typ, data = self._handler.copy(num, mail_action.folder)
+            typ, data = self._handler.copy(num, f'"{mail_action.folder}"')
             if typ != "OK":
                 self.panic(
                     f'Mail with subject="{mail_subject}" not copied to '
