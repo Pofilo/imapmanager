@@ -7,7 +7,7 @@ ENV IMAPMANAGER_CONFIG_PATH="/etc/imapmanager.conf.yml"
 ENV PYTHONUNBUFFERED=1
 
 WORKDIR /imapmanager
-COPY . .
-RUN pip install . --root-user-action=ignore && rm -fr /imapmanager
+COPY src pyproject.toml ./
+RUN ls -al && pip install . --root-user-action=ignore && rm -fr /imapmanager
 
 ENTRYPOINT ["imapmanager"]
