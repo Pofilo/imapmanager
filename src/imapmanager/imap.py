@@ -375,6 +375,9 @@ class Imap:
                         self._default_destination_folder,
                     )
                     mail_action.folder = self._default_destination_folder
+                    # We don't want to silently mark as read mails that ends in the
+                    # wrong folder.
+                    mail_action.mark_as_read = False
                     if not self._check_folder_exist_on_server(mail_action.folder):
                         self.panic(
                             f'default folder="{mail_action.folder}" does not exist '
