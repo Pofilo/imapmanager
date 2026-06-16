@@ -73,7 +73,11 @@ def main() -> None:
 
     # MAIN LOOP
     while not stop_event.is_set():
-        imap.process_mails(stop_event)
+        try:
+            imap.process_mails(stop_event)
+        except Exception:
+            # Should never happen, log the traceback for further digging.
+            logger.exception("Unexpected error during process_mails, continuing...")
 
         # Maybe the imap process needs to stop
         if not imap.running:

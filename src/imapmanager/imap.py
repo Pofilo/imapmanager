@@ -73,6 +73,9 @@ RECONNECT_MAX_DELAY = 300  # seconds (cap)
 RECONNECT_MULTIPLIER = 2
 RECONNECT_MAX_AUTH_ATTEMPTS = 5  # IMAP4.error (login) tolerated before giving up
 
+# Socket abort / TLS handshake / network errors -> transient errors.
+TRANSIENT_ERRORS = (IMAP4.abort, ssl.SSLError, OSError)
+
 
 @dataclass
 class MailAction:
@@ -187,9 +190,7 @@ class Imap:
         while not self._stop_event.is_set():
             try:
                 self._connect()
-            # IMAP4.abort -> Service errors
-            # Socket abort / TLS handshake / network errors -> transient.
-            except (IMAP4.abort, ssl.SSLError, OSError) as exc:
+            except TRANSIENT_ERRORS as exc:
                 reason = exc
             except IMAP4.error as exc:  # -> Logical errors (login/auth etc...)
                 auth_failures += 1
@@ -263,8 +264,9 @@ class Imap:
         try:
             # Go into the mailbox
             self._handler.select(f'"{mailbox}"')
-        except Exception:
-            self.logger.exception("Failed to select")
+        except Exception as exc:  # noqa: BLE001 (blind-except)
+            self.logger.error("Failed to select, will retry: err=%s", exc)
+            self._handler = None
             return
 
         try:
@@ -273,8 +275,9 @@ class Imap:
             if typ != "OK":
                 self.panic(f"Fail to search for mails (data={data}), exiting...")
                 return
-        except Exception:
-            self.logger.exception("Failed to search")
+        except Exception as exc:  # noqa: BLE001 (blind-except)
+            self.logger.error("Failed to search, will retry: err=%s", exc)
+            self._handler = None
             return
 
         # Counter of the number of mails processed
@@ -331,6 +334,12 @@ class Imap:
                 mail_action = self._unsafe_get_mail_action(
                     mail_msg, mail_subject, mail_body
                 )
+            except TRANSIENT_ERRORS as exc:
+                self.logger.warning(
+                    "Connection lost while fetching a mail, will reconnect: err=%s", exc
+                )
+                self._handler = None
+                return
             except Exception:
                 mail_action.folder = self._default_destination_folder
                 self.logger.exception(
@@ -356,51 +365,60 @@ class Imap:
                     f'GET mail subject="{mail_subject}" from="{mail_action.mail_from}"'
                 )
 
-            # Check if the folder exists on the server
-            if not self._check_folder_exist_on_server(mail_action.folder):
-                self.logger.warning(
-                    'folder="%s" does not exist on the server, moving the mail '
-                    'into the default folder="%s"',
-                    mail_action.folder,
-                    self._default_destination_folder,
-                )
-                mail_action.folder = self._default_destination_folder
+            try:
+                # Check if the folder exists on the server
                 if not self._check_folder_exist_on_server(mail_action.folder):
+                    self.logger.warning(
+                        'folder="%s" does not exist on the server, moving the mail '
+                        'into the default folder="%s"',
+                        mail_action.folder,
+                        self._default_destination_folder,
+                    )
+                    mail_action.folder = self._default_destination_folder
+                    if not self._check_folder_exist_on_server(mail_action.folder):
+                        self.panic(
+                            f'default folder="{mail_action.folder}" does not exist '
+                            "on the server, please fix the configuration, exiting..."
+                        )
+                        return
+
+                # Mark the mail as read if needed
+                if mail_action.mark_as_read:
+                    typ, data = self._handler.store(num, "+FLAGS", "\\Seen")
+                    if typ != "OK":
+                        self.panic(
+                            f'Fail to mark mail with subject="{mail_subject}" as read '
+                            f"(data={data}), exiting..."
+                        )
+                        return
+
+                # Copy the mail into the folder
+                typ, data = self._handler.copy(num, f'"{mail_action.folder}"')
+                if typ != "OK":
                     self.panic(
-                        f'default folder="{mail_action.folder}" does not exist '
-                        "on the server, please fix the configuration, exiting..."
+                        f'Mail with subject="{mail_subject}" not copied to '
+                        f'folder="{mail_action.folder}" (data={data}), exiting...'
                     )
                     return
 
-            # Mark the mail as read if needed
-            if mail_action.mark_as_read:
-                typ, data = self._handler.store(num, "+FLAGS", "\\Seen")
+                # Delete the original mail
+                typ, data = self._handler.store(num, "+FLAGS", "\\Deleted")
                 if typ != "OK":
                     self.panic(
-                        f'Fail to mark mail with subject="{mail_subject}" as read '
+                        f'Fail to delete original mail with subject="{mail_subject}" '
                         f"(data={data}), exiting..."
                     )
                     return
 
-            # Copy the mail into the folder
-            typ, data = self._handler.copy(num, f'"{mail_action.folder}"')
-            if typ != "OK":
-                self.panic(
-                    f'Mail with subject="{mail_subject}" not copied to '
-                    f'folder="{mail_action.folder}" (data={data}), exiting...'
+                self._handler.expunge()
+            except TRANSIENT_ERRORS as exc:
+                self.logger.warning(
+                    "Connection lost while applying actions to a mail, will reconnect: "
+                    "err=%s",
+                    exc,
                 )
+                self._handler = None
                 return
-
-            # Delete the original mail
-            typ, data = self._handler.store(num, "+FLAGS", "\\Deleted")
-            if typ != "OK":
-                self.panic(
-                    f'Fail to delete original mail with subject="{mail_subject}" '
-                    f"(data={data}), exiting..."
-                )
-                return
-
-            self._handler.expunge()
 
             # Update counter
             count += 1
@@ -590,12 +608,12 @@ class Imap:
             try:
                 self._handler.close()
             except Exception as exc:  # noqa: BLE001 (blind-except)
-                self.logger.warning("Failed to close mailbox: err=%s", exc)
+                self.logger.error("Failed to close mailbox: err=%s", exc)
 
         try:
             self._handler.logout()
             self.logger.info("Successful disconnection")
         except Exception as exc:  # noqa: BLE001 (blind-except)
-            self.logger.warning("Failed to logout: err=%s", exc)
+            self.logger.error("Failed to logout: err=%s", exc)
         finally:
             self._handler = None
