@@ -8,6 +8,6 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /imapmanager
 COPY src pyproject.toml ./
-RUN ls -al && pip install . --root-user-action=ignore && rm -fr /imapmanager
+RUN pip install . --root-user-action=ignore && rm -fr /imapmanager
 
 ENTRYPOINT ["imapmanager"]
