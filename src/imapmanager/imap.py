@@ -136,8 +136,6 @@ class MailActions:
 # ruff: noqa: PLR0911 (too-many-return-statements)
 # ruff: noqa: PLR0912 (too-many-branches)
 # ruff: noqa: PLR0915 (too-many-statements)
-# ruff: noqa: PLW2901 (redefined-loop-name)
-# ruff: noqa: SIM113 (enumerate-for-loop)
 class Imap:
     """
     Main class of ImapManager.
@@ -275,7 +273,7 @@ class Imap:
 
         try:
             # Get the unseen mails of this directory
-            typ, data = self._handler.search(None, "UNSEEN")
+            typ, data = self._handler.uid("SEARCH", None, "UNSEEN")
             if typ != "OK":
                 self.panic(f"Fail to search for mails (data={data}), exiting...")
                 return
@@ -284,15 +282,10 @@ class Imap:
             self._handler = None
             return
 
-        # Counter of the number of mails processed
-        count = 0
-
-        # This for loop is called with index 0 even if there is multiple mails because
-        # the mail is supposed to move in the end.
-        for num in data[0].split():
+        for uid_bytes in data[0].split():
             if stop_event.is_set():
                 return
-            num = str(int(num) - count)
+            uid = uid_bytes.decode()
 
             mail_subject = ""
             mail_action = MailAction()
@@ -300,12 +293,19 @@ class Imap:
             # Fetch and process mail
             try:
                 # See the mail without changing its unread flag
-                typ, data = self._handler.fetch(num, "(BODY.PEEK[])")
+                typ, data = self._handler.uid("FETCH", uid, "(BODY.PEEK[])")
                 if typ != "OK":
                     self.panic(
-                        f'Fail to fetch mail with num="{num}" (data={data}), exiting...'
+                        f'Fail to fetch mail with uid="{uid}" (data={data}), exiting...'
                     )
                     return
+                # If the mail no longer exists, UID FETCH returns OK with empty data.
+                # Skip it.
+                if not data or data[0] is None:
+                    self.logger.warning(
+                        'Mail with uid="%s" no longer exists, skipping', uid
+                    )
+                    continue
                 # data[0][1] is the raw email
                 mail_msg: EmailMessage = email.message_from_bytes(
                     data[0][1], policy=policy.default
@@ -391,7 +391,7 @@ class Imap:
 
                 # Mark the mail as read if needed
                 if mail_action.mark_as_read:
-                    typ, data = self._handler.store(num, "+FLAGS", "\\Seen")
+                    typ, data = self._handler.uid("STORE", uid, "+FLAGS", "\\Seen")
                     if typ != "OK":
                         self.panic(
                             f'Fail to mark mail with subject="{mail_subject}" as read '
@@ -400,7 +400,7 @@ class Imap:
                         return
 
                 # Copy the mail into the folder
-                typ, data = self._handler.copy(num, f'"{mail_action.folder}"')
+                typ, data = self._handler.uid("COPY", uid, f'"{mail_action.folder}"')
                 if typ != "OK":
                     self.panic(
                         f'Mail with subject="{mail_subject}" not copied to '
@@ -409,7 +409,7 @@ class Imap:
                     return
 
                 # Delete the original mail
-                typ, data = self._handler.store(num, "+FLAGS", "\\Deleted")
+                typ, data = self._handler.uid("STORE", uid, "+FLAGS", "\\Deleted")
                 if typ != "OK":
                     self.panic(
                         f'Fail to delete original mail with subject="{mail_subject}" '
@@ -417,7 +417,13 @@ class Imap:
                     )
                     return
 
-                self._handler.expunge()
+                typ, data = self._handler.uid("EXPUNGE", uid)
+                if typ != "OK":
+                    self.panic(
+                        f'Fail to expunge original mail with subject="{mail_subject}" '
+                        f"(data={data}), exiting..."
+                    )
+                    return
             except TRANSIENT_ERRORS as exc:
                 self.logger.warning(
                     "Connection lost while applying actions to a mail, will reconnect: "
@@ -426,9 +432,6 @@ class Imap:
                 )
                 self._handler = None
                 return
-
-            # Update counter
-            count += 1
 
     def _analyse_filters_for_category(
         self,
