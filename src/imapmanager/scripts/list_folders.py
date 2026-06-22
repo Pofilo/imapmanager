@@ -19,6 +19,7 @@ with this program. If not, see <http://www.gnu.org/licenses/>.
 import argparse
 import logging
 from imaplib import IMAP4_SSL
+from ssl import create_default_context
 
 
 def list_folders(
@@ -28,7 +29,7 @@ def list_folders(
     Connect to the mailbox and list all folders.
     """
     try:
-        with IMAP4_SSL(hostname, port) as mail:
+        with IMAP4_SSL(hostname, port, ssl_context=create_default_context()) as mail:
             mail.login(username, password)
             logger.info("Successful connection as username=%s", username)
             status, folders = mail.list()

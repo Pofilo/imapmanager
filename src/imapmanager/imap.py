@@ -17,10 +17,10 @@ with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
 import email
-import ssl
 from dataclasses import dataclass, field
 from email import policy
 from imaplib import IMAP4, IMAP4_SSL
+from ssl import SSLError, create_default_context
 from typing import TYPE_CHECKING
 from urllib.parse import quote
 
@@ -74,7 +74,7 @@ RECONNECT_MULTIPLIER = 2
 RECONNECT_MAX_AUTH_ATTEMPTS = 5  # IMAP4.error (login) tolerated before giving up
 
 # Socket abort / TLS handshake / network errors -> transient errors.
-TRANSIENT_ERRORS = (IMAP4.abort, ssl.SSLError, OSError)
+TRANSIENT_ERRORS = (IMAP4.abort, SSLError, OSError)
 
 
 @dataclass
@@ -170,7 +170,11 @@ class Imap:
         Perform a single connection attempt and select the mailbox.
         Raise on any failure.
         """
-        handler = IMAP4_SSL(self._hostname, self.config.get(PORT_NAME))
+        handler = IMAP4_SSL(
+            self._hostname,
+            self.config.get(PORT_NAME),
+            ssl_context=create_default_context(),
+        )
         handler.login(self._username, self.config.get(PASSWORD_NAME))
         handler.select(f'"{self.config.get(MAILBOX_NAME)}"')
         self._handler = handler  # affect the successful handler
