@@ -30,6 +30,11 @@ dependencies = [
 linters = [
     "ruff==0.15.5",
 ]
+# $ pip install .[tests]
+tests = [
+    "pytest==9.1.1",
+    "pytest-cov==7.1.0",
+]
 
 [project.urls]
 Repository = "https://git.pofilo.fr/pofilo/imapmanager"
@@ -67,4 +72,25 @@ ignore = [
 
 fixable = ["ALL"]
 unfixable = []
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = [
+    "ANN",  # type annotations are noise in tests
+    "D",  # no docstring requirement for tests
+    "S101",  # assert allowed in tests
+    "S105",  # hardcoded fake passwords in fixtures
+    "S106",  # hardcoded fake passwords in fixtures
+    "SLF001",  # tests access private members
+    "PLR2004",  # magic values in assertions
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["imapmanager"]
+
+[tool.coverage.report]
+show_missing = true
+exclude_also = ['if __name__ == "__main__":']
 

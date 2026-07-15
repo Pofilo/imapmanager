@@ -64,6 +64,13 @@ echo "==================="
 eval "${CMD}"
 echo "======= End ======="
 
+CMD="pytest -vs"
+echo "===== Running ====="
+echo "${CMD}"
+echo "==================="
+eval "${CMD}"
+echo "======= End ======="
+
 CMD="typos"
 echo "===== Running ====="
 echo "${CMD}"
