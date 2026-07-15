@@ -38,6 +38,10 @@ FILTER_PATTERN_NAME = "pattern"
 FILTER_ACTIONS_NAME = "actions"
 FILTER_WEIGHT_NAME = WEIGHT_NAME
 
+FILTER_ACTION_MARK_AS_READ_NAME = "mark_as_read"
+FILTER_ACTION_MOVE_NAME = "move"
+FILTER_ACTION_TELEGRAM_NAME = "telegram"
+
 SECTION_TELEGRAM_NAME = "telegram"
 TELEGRAM_TOKEN_NAME = "token"  # noqa: S105 (hardcoded-password-string)
 TELEGRAM_CHAT_ID_NAME = "chat_id"

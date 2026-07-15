@@ -26,7 +26,7 @@ filters:
   subject:
     INBOX.spam:
       - pattern: '[SPAM]'
-        actions: [move, mark_as_read]
+        actions: [move, mark_as_read, telegram]
 """
 
 MANDATORY_KEYS = (
@@ -127,9 +127,36 @@ class TestImapConfValidation(ImapConfTestCase):
 
     def test_filter_entry_missing_actions_exits(self) -> None:
         self.assert_exits(
-            VALID_CONFIG.replace("        actions: [move, mark_as_read]", "")
+            VALID_CONFIG.replace("        actions: [move, mark_as_read, telegram]", "")
         )
         assert "actions" in self.logger.critical.call_args.args
+
+    def test_filter_bad_action_mark_as_read(self) -> None:
+        self.assert_exits(
+            VALID_CONFIG.replace(
+                "        actions: [move, mark_as_read, telegram]",
+                "        actions: [mark_as_red]",
+            )
+        )
+        assert "unknown action" in self.logger.critical.call_args.args[0]
+
+    def test_filter_bad_action_move(self) -> None:
+        self.assert_exits(
+            VALID_CONFIG.replace(
+                "        actions: [move, mark_as_read, telegram]",
+                "        actions: [mov]",
+            )
+        )
+        assert "unknown action" in self.logger.critical.call_args.args[0]
+
+    def test_filter_bad_action_telegram(self) -> None:
+        self.assert_exits(
+            VALID_CONFIG.replace(
+                "        actions: [move, mark_as_read, telegram]",
+                "        actions: [signal]",
+            )
+        )
+        assert "unknown action" in self.logger.critical.call_args.args[0]
 
 
 class TestImapConfDebugMasking(ImapConfTestCase):

@@ -29,6 +29,9 @@ from yaml import SafeLoader, load
 from imapmanager.constants import (
     CONFIG_PATH_NAME,
     DEFAULT_CONFIG_PATH,
+    FILTER_ACTION_MARK_AS_READ_NAME,
+    FILTER_ACTION_MOVE_NAME,
+    FILTER_ACTION_TELEGRAM_NAME,
     FILTER_ACTIONS_NAME,
     FILTER_PATTERN_NAME,
     HOSTNAME_NAME,
@@ -151,6 +154,20 @@ class ImapConf(UserDict):
                             self.logger.critical(
                                 "key=%s not found in filter=filters.%s.%s[%d]",
                                 mandatory_field,
+                                category,
+                                folder,
+                                index,
+                            )
+                            sys_exit(1)
+                    for action in entry[FILTER_ACTIONS_NAME]:
+                        if action not in (
+                            FILTER_ACTION_MARK_AS_READ_NAME,
+                            FILTER_ACTION_MOVE_NAME,
+                            FILTER_ACTION_TELEGRAM_NAME,
+                        ):
+                            self.logger.critical(
+                                "unknown action=%s in filter=filters.%s.%s[%d]",
+                                action,
                                 category,
                                 folder,
                                 index,

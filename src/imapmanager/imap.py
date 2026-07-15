@@ -29,6 +29,9 @@ import requests
 from imapmanager.constants import (
     DEFAULT_WEIGHT,
     ENCODING,
+    FILTER_ACTION_MARK_AS_READ_NAME,
+    FILTER_ACTION_MOVE_NAME,
+    FILTER_ACTION_TELEGRAM_NAME,
     FILTER_ACTIONS_NAME,
     FILTER_PATTERN_NAME,
     FILTER_WEIGHT_NAME,
@@ -474,9 +477,11 @@ class Imap:
                             FILTER_WEIGHT_NAME,
                             self.config.get(WEIGHT_NAME, DEFAULT_WEIGHT),
                         ),
-                        folder=target_folder if "move" in matched_actions else None,
-                        send_telegram="telegram" in matched_actions,
-                        mark_as_read="mark_as_read" in matched_actions,
+                        folder=target_folder
+                        if FILTER_ACTION_MOVE_NAME in matched_actions
+                        else None,
+                        send_telegram=FILTER_ACTION_TELEGRAM_NAME in matched_actions,
+                        mark_as_read=FILTER_ACTION_MARK_AS_READ_NAME in matched_actions,
                     )
 
                     self.logger.debug(
