@@ -119,28 +119,58 @@ class ImapConf(UserDict):
         (aka contains all mandatory fields).
         """
         # Check all mandatories keys
-        self._check_config_key(SECTION_FILTERS_NAME)
+        self._check_config_key(SECTION_FILTERS_NAME, dict)
         self._check_filters()
         self._check_telegram()
 
         self._check_config_key(HOSTNAME_NAME)
-        self._check_config_key(PORT_NAME)
+        self._check_config_key(PORT_NAME, int, minimum=1, maximum=65535)
         self._check_config_key(USERNAME_NAME)
         self._check_config_key(PASSWORD_NAME)
         self._check_config_key(MAILBOX_NAME)
-        self._check_config_key(POLLING_INTERVAL_NAME)
+        self._check_config_key(POLLING_INTERVAL_NAME, (int, float), minimum=1)
         self._check_config_key(IMAP_DEFAULT_FOLDER_NAME)
         self._check_config_key(LOG_LEVEL_NAME)
         self._check_log_level()
 
-    def _check_config_key(self, key: str) -> None:
+    def _check_config_key(
+        self,
+        key: str,
+        expected_type: type | tuple[type, ...] = str,
+        minimum: float | None = None,
+        maximum: float | None = None,
+    ) -> None:
         """
-        Check that the given key exists in the configuration.
-        :param      key         the key to check
-        Log and exit if the key (or the section) is not found.
+        Check that the given key exists in the configuration with a non-empty
+        value of the expected type, within the given range if any.
+        :param      key             the key to check
+        :param      expected_type   the type(s) the value must have
+        :param      minimum         the minimum value allowed (numbers only)
+        :param      maximum         the maximum value allowed (numbers only)
+        Log and exit if the key is missing or its value is invalid.
         """
-        if not self.data.get(key):
+        value = self.data.get(key)
+        if value is None:
             self.logger.critical("key=%s not found in config file", key)
+            sys_exit(1)
+        types = expected_type if isinstance(expected_type, tuple) else (expected_type,)
+        # bool is a subclass of int but is never a valid config value
+        if isinstance(value, bool) or not isinstance(value, types):
+            self.logger.critical(
+                "key=%s must be of type %s, got %s",
+                key,
+                " or ".join(one_type.__name__ for one_type in types),
+                type(value).__name__,
+            )
+            sys_exit(1)
+        if isinstance(value, (str, dict)) and not value:
+            self.logger.critical("key=%s is empty in config file", key)
+            sys_exit(1)
+        if minimum is not None and value < minimum:
+            self.logger.critical("key=%s must be >= %s, got %s", key, minimum, value)
+            sys_exit(1)
+        if maximum is not None and value > maximum:
+            self.logger.critical("key=%s must be <= %s, got %s", key, maximum, value)
             sys_exit(1)
 
     def _check_log_level(self) -> None:

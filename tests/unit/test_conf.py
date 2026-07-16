@@ -133,9 +133,65 @@ class TestImapConfValidation(ImapConfTestCase):
                 self.assert_exits(text)
                 self.logger.critical.assert_called_once()
 
-    def test_falsy_value_treated_as_missing(self) -> None:
-        self.assert_exits(VALID_CONFIG.replace("port: 993", "port: 0"))
-        assert "port" in self.logger.critical.call_args.args
+    def test_port_out_of_range_exits(self) -> None:
+        for bad_port in ("0", "-1", "65536"):
+            with self.subTest(port=bad_port):
+                self.logger.reset_mock()
+                self.assert_exits(
+                    VALID_CONFIG.replace("port: 993", f"port: {bad_port}")
+                )
+                assert "port" in self.logger.critical.call_args.args
+                assert "must be" in self.logger.critical.call_args.args[0]
+
+    def test_port_wrong_type_exits(self) -> None:
+        # A quoted number and a boolean are both invalid ports.
+        for bad_port in ("'993'", "true"):
+            with self.subTest(port=bad_port):
+                self.logger.reset_mock()
+                self.assert_exits(
+                    VALID_CONFIG.replace("port: 993", f"port: {bad_port}")
+                )
+                assert "port" in self.logger.critical.call_args.args
+                assert "must be of type" in self.logger.critical.call_args.args[0]
+
+    def test_polling_interval_wrong_type_exits(self) -> None:
+        self.assert_exits(
+            VALID_CONFIG.replace("pollingInterval: 60", "pollingInterval: 10s")
+        )
+        assert "pollingInterval" in self.logger.critical.call_args.args
+        assert "must be of type" in self.logger.critical.call_args.args[0]
+
+    def test_polling_interval_below_minimum_exits(self) -> None:
+        self.assert_exits(
+            VALID_CONFIG.replace("pollingInterval: 60", "pollingInterval: 0")
+        )
+        assert "pollingInterval" in self.logger.critical.call_args.args
+
+    def test_polling_interval_float_accepted(self) -> None:
+        conf = self.make_conf(
+            VALID_CONFIG.replace("pollingInterval: 60", "pollingInterval: 2.5")
+        )
+        assert conf["pollingInterval"] == 2.5
+
+    def test_hostname_wrong_type_exits(self) -> None:
+        self.assert_exits(
+            VALID_CONFIG.replace("hostname: imap.example.com", "hostname: 993")
+        )
+        assert "hostname" in self.logger.critical.call_args.args
+        assert "must be of type" in self.logger.critical.call_args.args[0]
+
+    def test_empty_string_value_exits(self) -> None:
+        self.assert_exits(
+            VALID_CONFIG.replace("hostname: imap.example.com", "hostname: ''")
+        )
+        assert "hostname" in self.logger.critical.call_args.args
+        assert "is empty" in self.logger.critical.call_args.args[0]
+
+    def test_empty_filters_exits(self) -> None:
+        lines = VALID_CONFIG.splitlines(keepends=True)
+        self.assert_exits("".join(lines[:9]) + "filters: {}\n")
+        assert "filters" in self.logger.critical.call_args.args
+        assert "is empty" in self.logger.critical.call_args.args[0]
 
     def test_log_level_aliases_accepted(self) -> None:
         # FATAL and WARN are documented and valid logging aliases.
