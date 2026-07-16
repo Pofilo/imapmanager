@@ -159,6 +159,46 @@ class TestImapConfValidation(ImapConfTestCase):
         assert "unknown action" in self.logger.critical.call_args.args[0]
 
 
+class TestImapConfTelegramValidation(ImapConfTestCase):
+    TELEGRAM_SECTION = "telegram:\n  token: secret-token\n  chat_id: secret-chat\n"
+
+    def test_valid_telegram_section_loads(self) -> None:
+        conf = self.make_conf(VALID_CONFIG + self.TELEGRAM_SECTION)
+        assert conf["telegram"]["token"] == "secret-token"
+        assert conf["telegram"]["chat_id"] == "secret-chat"
+
+    def test_no_telegram_section_ok(self) -> None:
+        conf = self.make_conf(VALID_CONFIG)
+        assert "telegram" not in conf
+
+    def test_empty_telegram_section_ok(self) -> None:
+        # An explicitly empty section means "telegram disabled".
+        conf = self.make_conf(VALID_CONFIG + "telegram:\n")
+        assert conf["telegram"] is None
+
+    def test_telegram_missing_token_exits(self) -> None:
+        self.assert_exits(VALID_CONFIG + "telegram:\n  chat_id: secret-chat\n")
+        assert "token" in self.logger.critical.call_args.args
+
+    def test_telegram_missing_chat_id_exits(self) -> None:
+        self.assert_exits(VALID_CONFIG + "telegram:\n  token: secret-token\n")
+        assert "chat_id" in self.logger.critical.call_args.args
+
+    def test_telegram_mistyped_chat_id_exits(self) -> None:
+        self.assert_exits(
+            VALID_CONFIG + "telegram:\n  token: secret-token\n  chatid: oops\n"
+        )
+        assert "chat_id" in self.logger.critical.call_args.args
+
+    def test_telegram_falsy_token_exits(self) -> None:
+        self.assert_exits(VALID_CONFIG + "telegram:\n  token: ''\n  chat_id: c\n")
+        assert "token" in self.logger.critical.call_args.args
+
+    def test_telegram_non_dict_section_exits(self) -> None:
+        self.assert_exits(VALID_CONFIG + "telegram: not-a-mapping\n")
+        self.logger.critical.assert_called_once()
+
+
 class TestImapConfDebugMasking(ImapConfTestCase):
     def test_debug_masks_password_and_telegram(self) -> None:
         text = VALID_CONFIG.replace("logLevel: INFO", "logLevel: DEBUG")

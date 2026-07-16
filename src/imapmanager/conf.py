@@ -109,6 +109,7 @@ class ImapConf(UserDict):
         # Check all mandatories keys
         self._check_config_key(SECTION_FILTERS_NAME)
         self._check_filters()
+        self._check_telegram()
 
         self._check_config_key(HOSTNAME_NAME)
         self._check_config_key(PORT_NAME)
@@ -128,6 +129,24 @@ class ImapConf(UserDict):
         if not self.data.get(key):
             self.logger.critical("key=%s not found in config file", key)
             sys_exit(1)
+
+    def _check_telegram(self) -> None:
+        """
+        Check that the optional telegram section, when present,
+        contains the mandatory <token> and <chat_id> keys.
+        Log and exit if a key is missing.
+        """
+        telegram = self.data.get(SECTION_TELEGRAM_NAME)
+        if not telegram:
+            return
+        for key in (TELEGRAM_TOKEN_NAME, TELEGRAM_CHAT_ID_NAME):
+            if not isinstance(telegram, dict) or not telegram.get(key):
+                self.logger.critical(
+                    "key=%s not found in section=%s of config file",
+                    key,
+                    SECTION_TELEGRAM_NAME,
+                )
+                sys_exit(1)
 
     def _check_filters(self) -> None:
         """
