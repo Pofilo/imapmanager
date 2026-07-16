@@ -24,7 +24,7 @@ from pathlib import Path
 from sys import exit as sys_exit
 from typing import TYPE_CHECKING
 
-from yaml import SafeLoader, load
+from yaml import SafeLoader, YAMLError, load
 
 from imapmanager.constants import (
     CONFIG_PATH_NAME,
@@ -80,19 +80,30 @@ class ImapConf(UserDict):
         if Path(self._config_path).is_file():
             try:
                 with Path(self._config_path).open("r", encoding="UTF-8") as file_fd:
-                    self.data = load(file_fd, Loader=SafeLoader)
-                    # Check if config is valid
-                    self._check_config()
-                    if self.data.get(LOG_LEVEL_NAME) == "DEBUG":
-                        conf = deepcopy(self.data)
-                        conf[PASSWORD_NAME] = "*****"
-                        if conf.get(SECTION_TELEGRAM_NAME):
-                            conf[SECTION_TELEGRAM_NAME][TELEGRAM_TOKEN_NAME] = "*****"
-                            conf[SECTION_TELEGRAM_NAME][TELEGRAM_CHAT_ID_NAME] = "*****"
-                        self.logger.debug("conf used:\n%s", dumps(conf, indent=2))
-            except Exception as exc:  # noqa: BLE001 (blind-except)
-                self.logger.error("Parsing while reading conf: %s", exc)
+                    data = load(file_fd, Loader=SafeLoader)
+            except YAMLError as exc:
+                self.logger.critical("Parsing while reading conf: %s", exc)
                 sys_exit(1)
+            except OSError as exc:
+                self.logger.critical("Reading conf: %s", exc)
+                sys_exit(1)
+            if not isinstance(data, dict):
+                self.logger.critical(
+                    "config_file=%s must contain a YAML mapping, got %s",
+                    self._config_path,
+                    type(data).__name__,
+                )
+                sys_exit(1)
+            self.data = data
+            # Check if config is valid
+            self._check_config()
+            if self.data.get(LOG_LEVEL_NAME) == "DEBUG":
+                conf = deepcopy(self.data)
+                conf[PASSWORD_NAME] = "*****"
+                if conf.get(SECTION_TELEGRAM_NAME):
+                    conf[SECTION_TELEGRAM_NAME][TELEGRAM_TOKEN_NAME] = "*****"
+                    conf[SECTION_TELEGRAM_NAME][TELEGRAM_CHAT_ID_NAME] = "*****"
+                self.logger.debug("conf used:\n%s", dumps(conf, indent=2, default=str))
         else:
             self.logger.critical(
                 "config_file=%s not found, or set the env variable %s accordingly",
@@ -165,30 +176,58 @@ class ImapConf(UserDict):
             if category not in categories:
                 self.logger.critical("category=%s unknown", category)
                 sys_exit(1)
+            if not isinstance(filters[category], dict):
+                self.logger.critical(
+                    "filters.%s must be a mapping of folders", category
+                )
+                sys_exit(1)
             for folder, entries in filters[category].items():
+                if not isinstance(entries, list):
+                    self.logger.critical(
+                        "filters.%s.%s must be a list of filters", category, folder
+                    )
+                    sys_exit(1)
                 for index, entry in enumerate(entries):
-                    # Maybe we could also check if there is unknown fields
-                    for mandatory_field in (FILTER_PATTERN_NAME, FILTER_ACTIONS_NAME):
-                        if mandatory_field not in entry:
-                            self.logger.critical(
-                                "key=%s not found in filter=filters.%s.%s[%d]",
-                                mandatory_field,
-                                category,
-                                folder,
-                                index,
-                            )
-                            sys_exit(1)
-                    for action in entry[FILTER_ACTIONS_NAME]:
-                        if action not in (
-                            FILTER_ACTION_MARK_AS_READ_NAME,
-                            FILTER_ACTION_MOVE_NAME,
-                            FILTER_ACTION_TELEGRAM_NAME,
-                        ):
-                            self.logger.critical(
-                                "unknown action=%s in filter=filters.%s.%s[%d]",
-                                action,
-                                category,
-                                folder,
-                                index,
-                            )
-                            sys_exit(1)
+                    self._check_filter_entry(category, folder, index, entry)
+
+    def _check_filter_entry(
+        self, category: str, folder: str, index: int, entry: dict
+    ) -> None:
+        """
+        Check that the given filter entry is a mapping with the mandatory
+        <pattern> and <actions> keys, and that every action is known.
+        Log and exit on the first invalid field found.
+        """
+        if not isinstance(entry, dict):
+            self.logger.critical(
+                "filter=filters.%s.%s[%d] must be a mapping",
+                category,
+                folder,
+                index,
+            )
+            sys_exit(1)
+        # Maybe we could also check if there is unknown fields
+        for mandatory_field in (FILTER_PATTERN_NAME, FILTER_ACTIONS_NAME):
+            if mandatory_field not in entry:
+                self.logger.critical(
+                    "key=%s not found in filter=filters.%s.%s[%d]",
+                    mandatory_field,
+                    category,
+                    folder,
+                    index,
+                )
+                sys_exit(1)
+        for action in entry[FILTER_ACTIONS_NAME]:
+            if action not in (
+                FILTER_ACTION_MARK_AS_READ_NAME,
+                FILTER_ACTION_MOVE_NAME,
+                FILTER_ACTION_TELEGRAM_NAME,
+            ):
+                self.logger.critical(
+                    "unknown action=%s in filter=filters.%s.%s[%d]",
+                    action,
+                    category,
+                    folder,
+                    index,
+                )
+                sys_exit(1)

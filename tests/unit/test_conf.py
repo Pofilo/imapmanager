@@ -95,7 +95,27 @@ class TestImapConfLoading(ImapConfTestCase):
 
     def test_invalid_yaml_exits(self) -> None:
         self.assert_exits("::: [ not yaml\n  - {")
-        self.logger.error.assert_called_once()
+        self.logger.critical.assert_called_once()
+        assert "Parsing while reading conf" in self.logger.critical.call_args.args[0]
+
+    def test_empty_yaml_exits(self) -> None:
+        self.assert_exits("")
+        assert "must contain a YAML mapping" in self.logger.critical.call_args.args[0]
+        assert "NoneType" in self.logger.critical.call_args.args
+
+    def test_list_yaml_exits(self) -> None:
+        self.assert_exits("- hostname: imap.example.com\n- port: 993\n")
+        assert "must contain a YAML mapping" in self.logger.critical.call_args.args[0]
+        assert "list" in self.logger.critical.call_args.args
+
+    def test_unreadable_file_exits(self) -> None:
+        with mock.patch("imapmanager.conf.Path") as mock_path:
+            mock_path.return_value.is_file.return_value = True
+            mock_path.return_value.open.side_effect = OSError("permission denied")
+            with pytest.raises(SystemExit) as ctx:
+                ImapConf(logger=self.logger)
+        assert ctx.value.code == 1
+        assert "Reading conf" in self.logger.critical.call_args.args[0]
 
 
 class TestImapConfValidation(ImapConfTestCase):
@@ -158,6 +178,36 @@ class TestImapConfValidation(ImapConfTestCase):
         )
         assert "unknown action" in self.logger.critical.call_args.args[0]
 
+    def test_filter_category_not_mapping_exits(self) -> None:
+        self.assert_exits(
+            VALID_CONFIG.replace(
+                "    INBOX.spam:\n      - pattern: '[SPAM]'\n"
+                "        actions: [move, mark_as_read, telegram]\n",
+                "    - INBOX.spam\n",
+            )
+        )
+        assert "must be a mapping of folders" in self.logger.critical.call_args.args[0]
+
+    def test_filter_entries_not_list_exits(self) -> None:
+        self.assert_exits(
+            VALID_CONFIG.replace(
+                "    INBOX.spam:\n      - pattern: '[SPAM]'\n"
+                "        actions: [move, mark_as_read, telegram]\n",
+                "    INBOX.spam: '[SPAM]'\n",
+            )
+        )
+        assert "must be a list of filters" in self.logger.critical.call_args.args[0]
+
+    def test_filter_entry_not_mapping_exits(self) -> None:
+        self.assert_exits(
+            VALID_CONFIG.replace(
+                "      - pattern: '[SPAM]'\n"
+                "        actions: [move, mark_as_read, telegram]\n",
+                "      - '[SPAM]'\n",
+            )
+        )
+        assert "must be a mapping" in self.logger.critical.call_args.args[0]
+
 
 class TestImapConfTelegramValidation(ImapConfTestCase):
     TELEGRAM_SECTION = "telegram:\n  token: secret-token\n  chat_id: secret-chat\n"
@@ -219,6 +269,15 @@ class TestImapConfDebugMasking(ImapConfTestCase):
         conf = self.make_conf(VALID_CONFIG.replace("logLevel: INFO", "logLevel: DEBUG"))
         assert conf["logLevel"] == "DEBUG"
         self.logger.debug.assert_called_once()
+
+    def test_debug_dump_survives_non_json_yaml_types(self) -> None:
+        # An unquoted date is loaded by YAML as a datetime.date, which
+        # json.dumps cannot serialize without default=str.
+        text = VALID_CONFIG.replace("logLevel: INFO", "logLevel: DEBUG")
+        text += "someDate: 2026-07-16\n"
+        self.make_conf(text)
+        self.logger.debug.assert_called_once()
+        assert "2026-07-16" in self.logger.debug.call_args.args[1]
 
 
 if __name__ == "__main__":
