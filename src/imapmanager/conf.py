@@ -19,6 +19,7 @@ with this program. If not, see <http://www.gnu.org/licenses/>.
 from collections import UserDict
 from copy import deepcopy
 from json import dumps
+from logging import getLevelNamesMapping
 from os import getenv
 from pathlib import Path
 from sys import exit as sys_exit
@@ -130,6 +131,7 @@ class ImapConf(UserDict):
         self._check_config_key(POLLING_INTERVAL_NAME)
         self._check_config_key(IMAP_DEFAULT_FOLDER_NAME)
         self._check_config_key(LOG_LEVEL_NAME)
+        self._check_log_level()
 
     def _check_config_key(self, key: str) -> None:
         """
@@ -139,6 +141,21 @@ class ImapConf(UserDict):
         """
         if not self.data.get(key):
             self.logger.critical("key=%s not found in config file", key)
+            sys_exit(1)
+
+    def _check_log_level(self) -> None:
+        """
+        Check that the logLevel value is a known logging level name.
+        Log and exit otherwise.
+        """
+        log_level = self.data.get(LOG_LEVEL_NAME)
+        level_names = getLevelNamesMapping()
+        if log_level not in level_names:
+            self.logger.critical(
+                "logLevel=%s unknown, expected one of: %s",
+                log_level,
+                ", ".join(level_names),
+            )
             sys_exit(1)
 
     def _check_telegram(self) -> None:

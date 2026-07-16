@@ -137,6 +137,28 @@ class TestImapConfValidation(ImapConfTestCase):
         self.assert_exits(VALID_CONFIG.replace("port: 993", "port: 0"))
         assert "port" in self.logger.critical.call_args.args
 
+    def test_log_level_aliases_accepted(self) -> None:
+        # FATAL and WARN are documented and valid logging aliases.
+        for level in ("FATAL", "WARN", "DEBUG", "CRITICAL"):
+            with self.subTest(level=level):
+                conf = self.make_conf(
+                    VALID_CONFIG.replace("logLevel: INFO", f"logLevel: {level}")
+                )
+                assert conf["logLevel"] == level
+
+    def test_lowercase_log_level_exits(self) -> None:
+        self.assert_exits(VALID_CONFIG.replace("logLevel: INFO", "logLevel: info"))
+        assert "logLevel" in self.logger.critical.call_args.args[0]
+        assert "info" in self.logger.critical.call_args.args
+
+    def test_typo_log_level_exits(self) -> None:
+        self.assert_exits(VALID_CONFIG.replace("logLevel: INFO", "logLevel: INF"))
+        assert "logLevel" in self.logger.critical.call_args.args[0]
+        assert "INF" in self.logger.critical.call_args.args
+        self.assert_exits(VALID_CONFIG.replace("logLevel: INFO", "logLevel: INFOO"))
+        assert "logLevel" in self.logger.critical.call_args.args[0]
+        assert "INFOO" in self.logger.critical.call_args.args
+
     def test_unknown_filter_category_exits(self) -> None:
         self.assert_exits(VALID_CONFIG.replace("  subject:", "  bogus:"))
         assert "bogus" in self.logger.critical.call_args.args
