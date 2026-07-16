@@ -215,6 +215,41 @@ class TestImapConfValidation(ImapConfTestCase):
         assert "logLevel" in self.logger.critical.call_args.args[0]
         assert "INFOO" in self.logger.critical.call_args.args
 
+    def test_filter_weight_accepted(self) -> None:
+        conf = self.make_conf(
+            VALID_CONFIG.replace(
+                "- pattern: '[SPAM]'",
+                "- pattern: '[SPAM]'\n        weight: 5",
+            )
+        )
+        assert conf["filters"]["subject"]["INBOX.spam"][0]["weight"] == 5
+
+    def test_filter_weight_wrong_type_exits(self) -> None:
+        for bad_weight in ("'100'", "true", "null", "1.5"):
+            with self.subTest(weight=bad_weight):
+                self.logger.reset_mock()
+                self.assert_exits(
+                    VALID_CONFIG.replace(
+                        "- pattern: '[SPAM]'",
+                        f"- pattern: '[SPAM]'\n        weight: {bad_weight}",
+                    )
+                )
+                assert "weight" in self.logger.critical.call_args.args
+                assert "must be of type int" in self.logger.critical.call_args.args[0]
+
+    def test_default_weight_accepted(self) -> None:
+        conf = self.make_conf(VALID_CONFIG + "weight: 10\n")
+        assert conf["weight"] == 10
+
+    def test_default_weight_zero_accepted(self) -> None:
+        conf = self.make_conf(VALID_CONFIG + "weight: 0\n")
+        assert conf["weight"] == 0
+
+    def test_default_weight_wrong_type_exits(self) -> None:
+        self.assert_exits(VALID_CONFIG + "weight: '10'\n")
+        assert "weight" in self.logger.critical.call_args.args
+        assert "must be of type" in self.logger.critical.call_args.args[0]
+
     def test_unknown_filter_category_exits(self) -> None:
         self.assert_exits(VALID_CONFIG.replace("  subject:", "  bogus:"))
         assert "bogus" in self.logger.critical.call_args.args

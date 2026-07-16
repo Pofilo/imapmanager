@@ -35,6 +35,7 @@ from imapmanager.constants import (
     FILTER_ACTION_TELEGRAM_NAME,
     FILTER_ACTIONS_NAME,
     FILTER_PATTERN_NAME,
+    FILTER_WEIGHT_NAME,
     HOSTNAME_NAME,
     IMAP_DEFAULT_FOLDER_NAME,
     LOG_LEVEL_NAME,
@@ -51,6 +52,7 @@ from imapmanager.constants import (
     TELEGRAM_CHAT_ID_NAME,
     TELEGRAM_TOKEN_NAME,
     USERNAME_NAME,
+    WEIGHT_NAME,
 )
 
 if TYPE_CHECKING:
@@ -132,6 +134,10 @@ class ImapConf(UserDict):
         self._check_config_key(IMAP_DEFAULT_FOLDER_NAME)
         self._check_config_key(LOG_LEVEL_NAME)
         self._check_log_level()
+
+        # Optional default weight for filter entries
+        if WEIGHT_NAME in self.data:
+            self._check_config_key(WEIGHT_NAME, int)
 
     def _check_config_key(
         self,
@@ -278,3 +284,17 @@ class ImapConf(UserDict):
                     index,
                 )
                 sys_exit(1)
+        weight = entry.get(FILTER_WEIGHT_NAME)
+        # The optional weight must be an int (bool is a subclass of int)
+        if FILTER_WEIGHT_NAME in entry and (
+            isinstance(weight, bool) or not isinstance(weight, int)
+        ):
+            self.logger.critical(
+                "key=%s must be of type int in filter=filters.%s.%s[%d], got %s",
+                FILTER_WEIGHT_NAME,
+                category,
+                folder,
+                index,
+                type(weight).__name__,
+            )
+            sys_exit(1)
