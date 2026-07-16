@@ -215,6 +215,22 @@ class TestImapConfValidation(ImapConfTestCase):
         assert "logLevel" in self.logger.critical.call_args.args[0]
         assert "INFOO" in self.logger.critical.call_args.args
 
+    def test_filter_pattern_wrong_type_exits(self) -> None:
+        # Unquoted YAML scalars: date, bool, number and null are not strings.
+        for bad_pattern in ("2026-07-16", "true", "42", "null", "''"):
+            with self.subTest(pattern=bad_pattern):
+                self.logger.reset_mock()
+                self.assert_exits(
+                    VALID_CONFIG.replace(
+                        "- pattern: '[SPAM]'", f"- pattern: {bad_pattern}"
+                    )
+                )
+                assert "pattern" in self.logger.critical.call_args.args
+                assert (
+                    "must be a non-empty string"
+                    in self.logger.critical.call_args.args[0]
+                )
+
     def test_filter_weight_accepted(self) -> None:
         conf = self.make_conf(
             VALID_CONFIG.replace(

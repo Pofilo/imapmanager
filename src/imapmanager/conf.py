@@ -270,6 +270,18 @@ class ImapConf(UserDict):
                     index,
                 )
                 sys_exit(1)
+        pattern = entry[FILTER_PATTERN_NAME]
+        # An unquoted date/bool/number/null pattern is loaded as a non-str type
+        if not isinstance(pattern, str) or not pattern:
+            self.logger.critical(
+                "key=%s must be a non-empty string in filter=filters.%s.%s[%d], got %s",
+                FILTER_PATTERN_NAME,
+                category,
+                folder,
+                index,
+                type(pattern).__name__,
+            )
+            sys_exit(1)
         for action in entry[FILTER_ACTIONS_NAME]:
             if action not in (
                 FILTER_ACTION_MARK_AS_READ_NAME,
