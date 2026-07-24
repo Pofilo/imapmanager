@@ -64,8 +64,13 @@ def main() -> None:
     log_level = logging.getLevelName(config.get(LOG_LEVEL_NAME))
     logger.setLevel(log_level)
 
-    for module in ("requests", "urllib3"):
-        logging.getLogger(module).setLevel(log_level)
+    for module in ("requests",):
+        logging.getLogger(module).setLevel(max(log_level, logging.INFO))
+
+    # Pin urllib3 loggers to at least INFO: at DEBUG, it logs the full request URL,
+    # leaking the Telegram bot token (path), chat_id and message (query string)
+    # into the logs.
+    logging.getLogger("urllib3").setLevel(max(log_level, logging.INFO))
 
     imap = Imap(logger, config, stop_event)
 
