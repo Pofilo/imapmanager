@@ -37,14 +37,29 @@ logLevel: INFO
 #########################
 #        FILTERS        #
 #########################
-# Filters are divided in 3 categories.
-# First, the 'subject' will be analyzed, then the 'body', and finally the 'from'
-# and the 'to'/'cc' fields (represented by the 'DEST' category).
-# Each category is working in the same way:
-#   - the key represents the folden name
-#   - the values represent the filters to analyse
-# Each filter is composed of the key (what to analyse) and a list of actions.
-# A mail will be moved if the one filter (between quotes) is part of the field of the mail.
+# Filters are divided in 4 categories, evaluated in this order:
+#   'subject', then 'body', then 'from', and finally the 'to'/'cc' fields
+#   (both represented by the 'dest' category).
+# Each category works the same way:
+#   - the key is the destination folder name;
+#   - its value is the list of filters to analyse.
+# Each filter is composed of:
+#   - pattern: the text to look for (matched case-insensitively as a substring
+#     of the mail field, e.g. pattern "spam" matches a subject "This is SPAM!");
+#   - actions: a list among [move, mark_as_read, telegram];
+#   - weight: an optional integer priority (defaults to the top-level 'weight',
+#     itself 0 if unset).
+#
+# EXACTLY-ONE-RULE SEMANTICS (important):
+# A mail may match several filters, but only ONE rule is ever applied: the single
+# matching filter with the highest weight wins, and ONLY its actions are performed.
+# Ties (equal weight) are broken by evaluation order (subject > body > from > to > cc,
+# then the order filters are listed within a category).
+# Actions from the other matching filters are NOT merged. For example, if a mail
+# matches a 'from' rule with weight 100 and actions [move] AND a 'subject' rule with
+# actions [telegram, mark_as_read], only the 'from' rule wins: the mail is moved but
+# NO telegram notification is sent and it is NOT marked as read.
+# If a rule wins but has no 'move' action, the mail is moved to the defaultFolder.
 #
 
 filters:

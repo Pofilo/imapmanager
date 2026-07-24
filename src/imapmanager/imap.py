@@ -116,6 +116,10 @@ class MailActions:
         """
         Return the <MailAction> for the highest-weight match.
         Returns default MailAction when no rule matched.
+
+        Exactly-one-rule semantics: only the single highest-weight match is
+        returned; the actions of the other matches are discarded (never merged).
+        Ties keep insertion order (the first match evaluated wins).
         """
         if not self._actions:
             self.logger.debug("No matches, return default")
