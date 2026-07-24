@@ -87,6 +87,9 @@ unfixable = []
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# Import the package from src/ so tests always run against the working tree,
+# not a stale copy that may be installed in site-packages.
+pythonpath = ["src"]
 
 [tool.coverage.run]
 source = ["imapmanager"]
@@ -95,3 +98,8 @@ source = ["imapmanager"]
 show_missing = true
 exclude_also = ['if __name__ == "__main__":']
 
+[tool.typos]
+
+[tool.typos.default.extend-words]
+# "Caf=E9" (-> "Café") in unit test
+Caf = "Caf"

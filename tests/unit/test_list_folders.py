@@ -29,9 +29,24 @@ class TestParseArgs(unittest.TestCase):
         with mock.patch("sys.argv", argv):
             assert parse_args().port == 1993
 
+    def test_port_parsed_as_integer(self) -> None:
+        argv = ["list-folders", "host", "user", "pass", "--port", "143"]
+        with mock.patch("sys.argv", argv):
+            port = parse_args().port
+        assert isinstance(port, int)
+        assert port == 143
+
     def test_missing_positional_exits(self) -> None:
         with (
             mock.patch("sys.argv", ["list-folders", "host"]),
+            mock.patch("sys.stderr"),
+            pytest.raises(SystemExit),
+        ):
+            parse_args()
+
+    def test_missing_password_exits(self) -> None:
+        with (
+            mock.patch("sys.argv", ["list-folders", "host", "user"]),
             mock.patch("sys.stderr"),
             pytest.raises(SystemExit),
         ):
@@ -66,6 +81,17 @@ class TestListFolders(unittest.TestCase):
         self.mail.login.side_effect = OSError("connection refused")
         self.call()  # must not raise
         self.logger.exception.assert_called_once()
+
+    def test_list_exception_logged_not_raised(self) -> None:
+        self.mail.list.side_effect = OSError("list failed")
+        self.call()  # must not raise
+        self.logger.exception.assert_called_once()
+
+    def test_empty_folder_list_does_not_crash(self) -> None:
+        self.mail.list.return_value = ("OK", [])
+        self.call()
+        self.mail.list.assert_called_once()
+        self.logger.error.assert_not_called()
 
 
 class TestMain(unittest.TestCase):

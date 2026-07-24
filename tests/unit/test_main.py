@@ -3,16 +3,29 @@ Unit tests for imapmanager.__init__ (main entry point).
 """
 
 import unittest
-from signal import SIGTERM
+from signal import SIGINT, SIGTERM
 from unittest import mock
 
 import imapmanager
 
 
 class TestSignalHandler(unittest.TestCase):
-    def test_sets_module_stop_event(self) -> None:
+    def setUp(self) -> None:
+        imapmanager.stop_event.clear()
         self.addCleanup(imapmanager.stop_event.clear)
+
+    def test_sigterm_sets_stop_event(self) -> None:
         assert not imapmanager.stop_event.is_set()
+        imapmanager.signal_handler(SIGTERM, None)
+        assert imapmanager.stop_event.is_set()
+
+    def test_sigint_sets_stop_event(self) -> None:
+        assert not imapmanager.stop_event.is_set()
+        imapmanager.signal_handler(SIGINT, None)
+        assert imapmanager.stop_event.is_set()
+
+    def test_multiple_calls_stay_set(self) -> None:
+        imapmanager.signal_handler(SIGINT, None)
         imapmanager.signal_handler(SIGTERM, None)
         assert imapmanager.stop_event.is_set()
 
