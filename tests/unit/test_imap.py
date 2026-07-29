@@ -13,6 +13,8 @@ from unittest import mock
 from imapmanager.constants import NOTIFIERS
 from imapmanager.imap import (
     RECONNECT_MAX_AUTH_ATTEMPTS,
+    SOCKET_TIMEOUT,
+    TRANSIENT_ERRORS,
     Imap,
     MailAction,
     MailActions,
@@ -153,6 +155,16 @@ class TestConnectWithRetry(unittest.TestCase):
         assert not imap._connect_with_retry()
         imap._connect.assert_not_called()
 
+    def test_socket_timeout_retries_forever_without_panicking(self) -> None:
+        # A read timeout is a network fault: it must back off indefinitely, never
+        # be counted as an auth failure that gives up after a handful of tries.
+        failures = [TimeoutError("timed out")] * RECONNECT_MAX_AUTH_ATTEMPTS + [None]
+        imap, stop_event = self.make_imap_for_retry(failures)
+        assert imap._connect_with_retry()
+        assert imap._connect.call_count == RECONNECT_MAX_AUTH_ATTEMPTS + 1
+        assert self.wait_timeouts(stop_event) == [5, 10, 20, 40, 80]
+        stop_event.set.assert_not_called()
+
     def test_auth_failures_panic_after_five(self) -> None:
         imap, stop_event = self.make_imap_for_retry(IMAP4.error("bad login"))
         assert not imap._connect_with_retry()
@@ -172,13 +184,22 @@ class TestConnect(unittest.TestCase):
         ):
             imap._connect()
         imap_ssl.assert_called_once_with(
-            "imap.example.com", 993, ssl_context=ctx.return_value
+            "imap.example.com",
+            993,
+            ssl_context=ctx.return_value,
+            timeout=SOCKET_TIMEOUT,
         )
         handler = imap_ssl.return_value
         handler.login.assert_called_once_with("user@example.com", "hunter2")
         handler.select.assert_called_once_with('"INBOX"')
         assert imap._handler is handler
         assert imap.running
+
+    def test_timeout_error_is_transient(self) -> None:
+        # SOCKET_TIMEOUT only ever recovers because a socket timeout raises
+        # TimeoutError, which TRANSIENT_ERRORS already covers through OSError.
+        # If that stops holding, every read timeout becomes an unhandled crash.
+        assert issubclass(TimeoutError, TRANSIENT_ERRORS)
 
 
 class TestMaybeReconnect(unittest.TestCase):
@@ -197,6 +218,16 @@ class TestMaybeReconnect(unittest.TestCase):
     def test_check_exception_reconnects(self) -> None:
         imap = make_imap()
         imap._handler.check.side_effect = IMAP4.abort("connection lost")
+        with mock.patch.object(imap, "_connect_with_retry", return_value=True) as retry:
+            assert imap._maybe_reconnect()
+        assert imap._handler is None
+        retry.assert_called_once()
+
+    def test_socket_timeout_on_check_reconnects(self) -> None:
+        # The keepalive check is where a half-open connection surfaces first: with
+        # SOCKET_TIMEOUT it raises instead of blocking, so recovery can happen.
+        imap = make_imap()
+        imap._handler.check.side_effect = TimeoutError("timed out")
         with mock.patch.object(imap, "_connect_with_retry", return_value=True) as retry:
             assert imap._maybe_reconnect()
         assert imap._handler is None

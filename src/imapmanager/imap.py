@@ -69,7 +69,10 @@ RECONNECT_MAX_DELAY = 300  # seconds (cap)
 RECONNECT_MULTIPLIER = 2
 RECONNECT_MAX_AUTH_ATTEMPTS = 5  # IMAP4.error (login) tolerated before giving up
 
+SOCKET_TIMEOUT = 60
+
 # Socket abort / TLS handshake / network errors -> transient errors.
+# A socket timeout raises TimeoutError, a subclass of OSError, so it lands here too.
 TRANSIENT_ERRORS = (IMAP4.abort, SSLError, OSError)
 
 
@@ -173,6 +176,7 @@ class Imap:
             self._hostname,
             self.config.get(PORT_NAME),
             ssl_context=create_default_context(),
+            timeout=SOCKET_TIMEOUT,
         )
         handler.login(self._username, self.config.get(PASSWORD_NAME))
         handler.select(f'"{self.config.get(MAILBOX_NAME)}"')
