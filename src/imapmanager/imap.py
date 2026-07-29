@@ -22,16 +22,12 @@ from email import policy
 from imaplib import IMAP4, IMAP4_SSL
 from ssl import SSLError, create_default_context
 from typing import TYPE_CHECKING
-from urllib.parse import quote
-
-import requests
 
 from imapmanager.constants import (
     DEFAULT_WEIGHT,
     ENCODING,
     FILTER_ACTION_MARK_AS_READ_NAME,
     FILTER_ACTION_MOVE_NAME,
-    FILTER_ACTION_TELEGRAM_NAME,
     FILTER_ACTIONS_NAME,
     FILTER_PATTERN_NAME,
     FILTER_WEIGHT_NAME,
@@ -43,6 +39,7 @@ from imapmanager.constants import (
     IMAP_SUBJECT,
     IMAP_TO,
     MAILBOX_NAME,
+    NOTIFIERS,
     PASSWORD_NAME,
     PORT_NAME,
     SECTION_BODY_NAME,
@@ -50,12 +47,10 @@ from imapmanager.constants import (
     SECTION_FILTERS_NAME,
     SECTION_FROM_NAME,
     SECTION_SUBJECT_NAME,
-    SECTION_TELEGRAM_NAME,
-    TELEGRAM_CHAT_ID_NAME,
-    TELEGRAM_TOKEN_NAME,
     USERNAME_NAME,
     WEIGHT_NAME,
 )
+from imapmanager.notifiers import Notifiers
 from imapmanager.utils import (
     decode_subject,
     extract_and_sanitize_mail_addresses,
@@ -67,8 +62,6 @@ if TYPE_CHECKING:
     from threading import Event
 
     from imapmanager.conf import ImapConf
-
-HTTP_CODE_SUCCESS = 200
 
 # Reconnection backoff on transient connection/SSL errors.
 RECONNECT_INITIAL_DELAY = 5  # seconds
@@ -88,7 +81,7 @@ class MailAction:
 
     rule_name: str | None = None  # Name of the rule (None for no rule)
     folder: str | None = None
-    send_telegram: bool = False
+    notifiers: tuple[str, ...] = ()  # Notifiers to send a notification to
     mark_as_read: bool = False
     weight: int = DEFAULT_WEIGHT  # Higher wins when multiple rules match
     mail_from: str | None = None
@@ -163,6 +156,7 @@ class Imap:
         self.config = config
         self.running = False
         self._stop_event = stop_event
+        self.notifiers = Notifiers(logger, config)
 
         self._connect_with_retry()
 
@@ -360,20 +354,21 @@ class Imap:
 
             self.logger.info(
                 'GET mail subject="%s" from="%s" dest="%s" to be moved into "%s" '
-                "(telegram=%s, mark_as_read=%s, rule=%s)",
+                "(notifiers=%s, mark_as_read=%s, rule=%s)",
                 mail_subject,
                 mail_action.mail_from,
                 mail_action.mail_dest,
                 mail_action.folder,
-                mail_action.send_telegram,
+                mail_action.notifiers,
                 mail_action.mark_as_read,
                 mail_action.rule_name,
             )
 
-            # Send the telegram notification if needed
-            if mail_action.send_telegram:
-                self._send_telegram_notification(
-                    f'GET mail subject="{mail_subject}" from="{mail_action.mail_from}"'
+            # Send the notifications if needed
+            if mail_action.notifiers:
+                self.notifiers.send(
+                    f'GET mail subject="{mail_subject}" from="{mail_action.mail_from}"',
+                    mail_action.notifiers,
                 )
 
             try:
@@ -484,7 +479,11 @@ class Imap:
                         folder=target_folder
                         if FILTER_ACTION_MOVE_NAME in matched_actions
                         else None,
-                        send_telegram=FILTER_ACTION_TELEGRAM_NAME in matched_actions,
+                        notifiers=tuple(
+                            notifier
+                            for notifier in NOTIFIERS
+                            if notifier in matched_actions
+                        ),
                         mark_as_read=FILTER_ACTION_MARK_AS_READ_NAME in matched_actions,
                     )
 
@@ -577,38 +576,16 @@ class Imap:
 
         return mail_action
 
-    def _send_telegram_notification(self, message: str | None = None) -> None:
-        """
-        Send msg if telegram section is defined in the configuration.
-        """
-        if self.config.get(SECTION_TELEGRAM_NAME, {}):
-            token = self.config[SECTION_TELEGRAM_NAME][TELEGRAM_TOKEN_NAME]
-            chat_id = self.config[SECTION_TELEGRAM_NAME][TELEGRAM_CHAT_ID_NAME]
-            try:
-                url = (
-                    f"https://api.telegram.org/bot{token}/sendMessage?"
-                    f"chat_id={chat_id}&text={quote(message)}"
-                )
-                resp = requests.get(url, timeout=5)
-                if resp.status_code != HTTP_CODE_SUCCESS:
-                    self.logger.warning(
-                        "Failed to send telegram message, status_code=%s err=%s",
-                        resp.status_code,
-                        resp.text,
-                    )
-            except Exception:
-                self.logger.exception("Failed to send telegram message")
-
     def panic(self, msg: str) -> None:
         """
-        Log a critical message and send it as a telegram notification if possible.
+        Log a critical message and send it through every configured notifier.
         """
         self.running = False
 
         self.logger.critical(msg)
 
-        # If telegram is defined in the configuration, send a notification
-        self._send_telegram_notification(msg)
+        # Notify through every notifier defined in the configuration
+        self.notifiers.send(msg)
 
         self.logout()
 

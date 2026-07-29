@@ -41,10 +41,28 @@ FILTER_WEIGHT_NAME = WEIGHT_NAME
 FILTER_ACTION_MARK_AS_READ_NAME = "mark_as_read"
 FILTER_ACTION_MOVE_NAME = "move"
 FILTER_ACTION_TELEGRAM_NAME = "telegram"
+FILTER_ACTION_PUSHOVER_NAME = "pushover"
 
 SECTION_TELEGRAM_NAME = "telegram"
 TELEGRAM_TOKEN_NAME = "token"  # noqa: S105 (hardcoded-password-string)
 TELEGRAM_CHAT_ID_NAME = "chat_id"
+
+SECTION_PUSHOVER_NAME = "pushover"
+PUSHOVER_TOKEN_NAME = "token"  # noqa: S105 (hardcoded-password-string)
+PUSHOVER_USER_KEY_NAME = "user_key"
+
+# Notification actions: action name -> (config section, mandatory credential keys).
+# A section absent (or explicitly empty) means the notifier is disabled.
+NOTIFIERS = {
+    FILTER_ACTION_PUSHOVER_NAME: (
+        SECTION_PUSHOVER_NAME,
+        (PUSHOVER_TOKEN_NAME, PUSHOVER_USER_KEY_NAME),
+    ),
+    FILTER_ACTION_TELEGRAM_NAME: (
+        SECTION_TELEGRAM_NAME,
+        (TELEGRAM_TOKEN_NAME, TELEGRAM_CHAT_ID_NAME),
+    ),
+}
 
 # IMAP VARIABLES
 IMAP_SUBJECT = "subject"

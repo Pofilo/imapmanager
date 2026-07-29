@@ -307,6 +307,25 @@ class TestImapConfValidation(ImapConfTestCase):
         )
         assert "unknown action" in self.logger.critical.call_args.args[0]
 
+    def test_filter_action_pushover_ok(self) -> None:
+        conf = self.make_conf(
+            VALID_CONFIG.replace(
+                "        actions: [move, mark_as_read, telegram]",
+                "        actions: [move, pushover]",
+            )
+        )
+        entry = conf["filters"]["subject"]["INBOX.spam"][0]
+        assert entry["actions"] == ["move", "pushover"]
+
+    def test_filter_bad_action_pushover(self) -> None:
+        self.assert_exits(
+            VALID_CONFIG.replace(
+                "        actions: [move, mark_as_read, telegram]",
+                "        actions: [pushbullet]",
+            )
+        )
+        assert "unknown action" in self.logger.critical.call_args.args[0]
+
     def test_filter_category_not_mapping_exits(self) -> None:
         self.assert_exits(
             VALID_CONFIG.replace(
@@ -378,10 +397,60 @@ class TestImapConfTelegramValidation(ImapConfTestCase):
         self.logger.critical.assert_called_once()
 
 
+class TestImapConfPushoverValidation(ImapConfTestCase):
+    PUSHOVER_SECTION = "pushover:\n  token: secret-app\n  user_key: secret-user\n"
+
+    def test_valid_pushover_section_loads(self) -> None:
+        conf = self.make_conf(VALID_CONFIG + self.PUSHOVER_SECTION)
+        assert conf["pushover"]["token"] == "secret-app"
+        assert conf["pushover"]["user_key"] == "secret-user"
+
+    def test_no_pushover_section_ok(self) -> None:
+        conf = self.make_conf(VALID_CONFIG)
+        assert "pushover" not in conf
+
+    def test_empty_pushover_section_ok(self) -> None:
+        # An explicitly empty section means "pushover disabled".
+        conf = self.make_conf(VALID_CONFIG + "pushover:\n")
+        assert conf["pushover"] is None
+
+    def test_pushover_missing_token_exits(self) -> None:
+        self.assert_exits(VALID_CONFIG + "pushover:\n  user_key: secret-user\n")
+        assert "token" in self.logger.critical.call_args.args
+
+    def test_pushover_missing_user_key_exits(self) -> None:
+        self.assert_exits(VALID_CONFIG + "pushover:\n  token: secret-app\n")
+        assert "user_key" in self.logger.critical.call_args.args
+
+    def test_pushover_mistyped_user_key_exits(self) -> None:
+        self.assert_exits(
+            VALID_CONFIG + "pushover:\n  token: secret-app\n  userkey: oops\n"
+        )
+        assert "user_key" in self.logger.critical.call_args.args
+
+    def test_pushover_falsy_token_exits(self) -> None:
+        self.assert_exits(VALID_CONFIG + "pushover:\n  token: ''\n  user_key: u\n")
+        assert "token" in self.logger.critical.call_args.args
+
+    def test_pushover_non_dict_section_exits(self) -> None:
+        self.assert_exits(VALID_CONFIG + "pushover: not-a-mapping\n")
+        self.logger.critical.assert_called_once()
+
+    def test_both_notifier_sections_load(self) -> None:
+        conf = self.make_conf(
+            VALID_CONFIG
+            + "telegram:\n  token: secret-token\n  chat_id: secret-chat\n"
+            + self.PUSHOVER_SECTION
+        )
+        assert conf["telegram"]["chat_id"] == "secret-chat"
+        assert conf["pushover"]["user_key"] == "secret-user"
+
+
 class TestImapConfDebugMasking(ImapConfTestCase):
-    def test_debug_masks_password_and_telegram(self) -> None:
+    def test_debug_masks_password_and_notifiers(self) -> None:
         text = VALID_CONFIG.replace("logLevel: INFO", "logLevel: DEBUG")
         text += "telegram:\n  token: secret-token\n  chat_id: secret-chat\n"
+        text += "pushover:\n  token: secret-app\n  user_key: secret-user\n"
         conf = self.make_conf(text)
 
         self.logger.debug.assert_called_once()
@@ -390,11 +459,14 @@ class TestImapConfDebugMasking(ImapConfTestCase):
         assert "hunter2" not in dumped
         assert "secret-token" not in dumped
         assert "secret-chat" not in dumped
+        assert "secret-app" not in dumped
+        assert "secret-user" not in dumped
         # The real config is untouched (masking works on a deepcopy).
         assert conf["password"] == "hunter2"
         assert conf["telegram"]["token"] == "secret-token"
+        assert conf["pushover"]["user_key"] == "secret-user"
 
-    def test_debug_without_telegram_section_ok(self) -> None:
+    def test_debug_without_notifier_section_ok(self) -> None:
         conf = self.make_conf(VALID_CONFIG.replace("logLevel: INFO", "logLevel: DEBUG"))
         assert conf["logLevel"] == "DEBUG"
         self.logger.debug.assert_called_once()

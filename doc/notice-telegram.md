@@ -33,6 +33,14 @@ Then, communicate with **cid_bot**:
 + Save it in the `CHATID` in your configuration file.
 + You can now remove `@cid_bot` from the group.
 
+## Configuration
+
+```yaml
+telegram:
+  token: "xx:yy"
+  chat_id: "abc"
+```
+
 ## Implementation
 
-You can find the implementation in `imap.py`.
+You can find the implementation in `notifiers.py`.

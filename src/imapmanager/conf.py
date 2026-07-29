@@ -32,7 +32,6 @@ from imapmanager.constants import (
     DEFAULT_CONFIG_PATH,
     FILTER_ACTION_MARK_AS_READ_NAME,
     FILTER_ACTION_MOVE_NAME,
-    FILTER_ACTION_TELEGRAM_NAME,
     FILTER_ACTIONS_NAME,
     FILTER_PATTERN_NAME,
     FILTER_WEIGHT_NAME,
@@ -40,6 +39,7 @@ from imapmanager.constants import (
     IMAP_DEFAULT_FOLDER_NAME,
     LOG_LEVEL_NAME,
     MAILBOX_NAME,
+    NOTIFIERS,
     PASSWORD_NAME,
     POLLING_INTERVAL_NAME,
     PORT_NAME,
@@ -48,9 +48,6 @@ from imapmanager.constants import (
     SECTION_FILTERS_NAME,
     SECTION_FROM_NAME,
     SECTION_SUBJECT_NAME,
-    SECTION_TELEGRAM_NAME,
-    TELEGRAM_CHAT_ID_NAME,
-    TELEGRAM_TOKEN_NAME,
     USERNAME_NAME,
     WEIGHT_NAME,
 )
@@ -103,9 +100,10 @@ class ImapConf(UserDict):
             if self.data.get(LOG_LEVEL_NAME) == "DEBUG":
                 conf = deepcopy(self.data)
                 conf[PASSWORD_NAME] = "*****"
-                if conf.get(SECTION_TELEGRAM_NAME):
-                    conf[SECTION_TELEGRAM_NAME][TELEGRAM_TOKEN_NAME] = "*****"
-                    conf[SECTION_TELEGRAM_NAME][TELEGRAM_CHAT_ID_NAME] = "*****"
+                for section, credential_keys in NOTIFIERS.values():
+                    if conf.get(section):
+                        for key in credential_keys:
+                            conf[section][key] = "*****"
                 self.logger.debug("conf used:\n%s", dumps(conf, indent=2, default=str))
         else:
             self.logger.critical(
@@ -123,7 +121,7 @@ class ImapConf(UserDict):
         # Check all mandatories keys
         self._check_config_key(SECTION_FILTERS_NAME, dict)
         self._check_filters()
-        self._check_telegram()
+        self._check_notifiers()
 
         self._check_config_key(HOSTNAME_NAME)
         self._check_config_key(PORT_NAME, int, minimum=1, maximum=65535)
@@ -194,23 +192,25 @@ class ImapConf(UserDict):
             )
             sys_exit(1)
 
-    def _check_telegram(self) -> None:
+    def _check_notifiers(self) -> None:
         """
-        Check that the optional telegram section, when present,
-        contains the mandatory <token> and <chat_id> keys.
+        Check that every optional notifier section, when present, contains its
+        mandatory credential keys (see <NOTIFIERS>).
+        An absent or empty section simply means the notifier is disabled.
         Log and exit if a key is missing.
         """
-        telegram = self.data.get(SECTION_TELEGRAM_NAME)
-        if not telegram:
-            return
-        for key in (TELEGRAM_TOKEN_NAME, TELEGRAM_CHAT_ID_NAME):
-            if not isinstance(telegram, dict) or not telegram.get(key):
-                self.logger.critical(
-                    "key=%s not found in section=%s of config file",
-                    key,
-                    SECTION_TELEGRAM_NAME,
-                )
-                sys_exit(1)
+        for section, credential_keys in NOTIFIERS.values():
+            notifier = self.data.get(section)
+            if not notifier:
+                continue
+            for key in credential_keys:
+                if not isinstance(notifier, dict) or not notifier.get(key):
+                    self.logger.critical(
+                        "key=%s not found in section=%s of config file",
+                        key,
+                        section,
+                    )
+                    sys_exit(1)
 
     def _check_filters(self) -> None:
         """
@@ -286,7 +286,7 @@ class ImapConf(UserDict):
             if action not in (
                 FILTER_ACTION_MARK_AS_READ_NAME,
                 FILTER_ACTION_MOVE_NAME,
-                FILTER_ACTION_TELEGRAM_NAME,
+                *NOTIFIERS,
             ):
                 self.logger.critical(
                     "unknown action=%s in filter=filters.%s.%s[%d]",

@@ -46,7 +46,7 @@ logLevel: INFO
 # Each filter is composed of:
 #   - pattern: the text to look for (matched case-insensitively as a substring
 #     of the mail field, e.g. pattern "spam" matches a subject "This is SPAM!");
-#   - actions: a list among [move, mark_as_read, telegram];
+#   - actions: a list among [mark_as_read, move, pushover, telegram];
 #   - weight: an optional integer priority (defaults to the top-level 'weight',
 #     itself 0 if unset).
 #
@@ -101,3 +101,11 @@ filters:
 # telegram:
 #   token: "xx:yy"
 #   chat_id: "abc"
+
+#########################
+#       PUSHOVER        #
+#########################
+# Add the pushover token (application API token) and user_key if needed.
+# pushover:
+#   token: "xx"
+#   user_key: "yy"

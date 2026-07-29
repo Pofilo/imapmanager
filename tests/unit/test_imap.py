@@ -10,6 +10,7 @@ from ssl import SSLError
 from threading import Event
 from unittest import mock
 
+from imapmanager.constants import NOTIFIERS
 from imapmanager.imap import (
     RECONNECT_MAX_AUTH_ATTEMPTS,
     Imap,
@@ -239,6 +240,10 @@ class TestAnalyseFiltersForCategory(unittest.TestCase):
                                 "pattern": "notify me",
                                 "actions": ["telegram", "mark_as_read"],
                             },
+                            {
+                                "pattern": "push me",
+                                "actions": ["pushover", "telegram"],
+                            },
                         ],
                         "INBOX.important": [
                             {
@@ -274,8 +279,17 @@ class TestAnalyseFiltersForCategory(unittest.TestCase):
             "subject", "subject", ["please notify me"]
         )
         assert action.folder is None
-        assert action.send_telegram
+        assert action.notifiers == ("telegram",)
         assert action.mark_as_read
+
+    def test_notifiers_follow_the_registry_order(self) -> None:
+        # The tuple order comes from NOTIFIERS, not from the 'actions' list
+        # (where the filter lists pushover first).
+        action = self.imap._analyse_filters_for_category(
+            "subject", "subject", ["please push me"]
+        )
+        assert action.notifiers == tuple(NOTIFIERS)
+        assert not action.mark_as_read
 
     def test_entry_weight_overrides_global_weight(self) -> None:
         self.imap.config["weight"] = 3
@@ -467,10 +481,38 @@ class TestProcessMails(ProcessMailsTestCase):
             "move",
             "telegram",
         ]
-        with mock.patch.object(self.imap, "_send_telegram_notification") as notify:
+        with mock.patch.object(self.imap.notifiers, "send") as notify:
             self.imap.process_mails(self.stop_event)
         notify.assert_called_once()
         assert "[SPAM] buy stuff" in notify.call_args.args[0]
+        assert notify.call_args.args[1] == ("telegram",)
+
+    def test_pushover_notification_sent_when_action(self) -> None:
+        self.imap.config["filters"]["subject"]["INBOX.spam"][0]["actions"] = [
+            "move",
+            "pushover",
+        ]
+        with mock.patch.object(self.imap.notifiers, "send") as notify:
+            self.imap.process_mails(self.stop_event)
+        notify.assert_called_once()
+        assert "[SPAM] buy stuff" in notify.call_args.args[0]
+        assert notify.call_args.args[1] == ("pushover",)
+
+    def test_both_notifications_sent_when_both_actions(self) -> None:
+        self.imap.config["filters"]["subject"]["INBOX.spam"][0]["actions"] = [
+            "move",
+            "pushover",
+            "telegram",
+        ]
+        with mock.patch.object(self.imap.notifiers, "send") as notify:
+            self.imap.process_mails(self.stop_event)
+        notify.assert_called_once()
+        assert notify.call_args.args[1] == tuple(NOTIFIERS)
+
+    def test_no_notification_sent_without_notifier_action(self) -> None:
+        with mock.patch.object(self.imap.notifiers, "send") as notify:
+            self.imap.process_mails(self.stop_event)
+        notify.assert_not_called()
 
     def test_stop_event_set_aborts_before_processing(self) -> None:
         self.stop_event.set()
@@ -580,46 +622,6 @@ class TestProcessMails(ProcessMailsTestCase):
         assert copy_calls[0].args[2] == '"INBOX.default"'
 
 
-class TestSendTelegramNotification(unittest.TestCase):
-    def test_no_telegram_section_no_call(self) -> None:
-        imap = make_imap()
-        with mock.patch("imapmanager.imap.requests.get") as get:
-            imap._send_telegram_notification("hello")
-        get.assert_not_called()
-
-    def make_telegram_imap(self):
-        return make_imap(
-            make_config(telegram={"token": "tok123", "chat_id": "chat456"})
-        )
-
-    def test_success_builds_quoted_url_with_timeout(self) -> None:
-        imap = self.make_telegram_imap()
-        with mock.patch("imapmanager.imap.requests.get") as get:
-            get.return_value.status_code = 200
-            imap._send_telegram_notification("hello world")
-        get.assert_called_once_with(
-            "https://api.telegram.org/bottok123/sendMessage?"
-            "chat_id=chat456&text=hello%20world",
-            timeout=5,
-        )
-        imap.logger.warning.assert_not_called()
-
-    def test_non_200_logs_warning(self) -> None:
-        imap = self.make_telegram_imap()
-        with mock.patch("imapmanager.imap.requests.get") as get:
-            get.return_value.status_code = 500
-            get.return_value.text = "oops"
-            imap._send_telegram_notification("hello")
-        imap.logger.warning.assert_called_once()
-
-    def test_request_exception_swallowed(self) -> None:
-        imap = self.make_telegram_imap()
-        with mock.patch("imapmanager.imap.requests.get") as get:
-            get.side_effect = OSError("network down")
-            imap._send_telegram_notification("hello")
-        imap.logger.exception.assert_called_once()
-
-
 class TestPanicAndLogout(unittest.TestCase):
     def test_panic_stops_running_logs_out_sets_event(self) -> None:
         stop_event = Event()
@@ -631,6 +633,13 @@ class TestPanicAndLogout(unittest.TestCase):
         imap.logger.critical.assert_called_once_with("something broke")
         handler.logout.assert_called_once()
         assert stop_event.is_set()
+
+    def test_panic_notifies_every_notifier(self) -> None:
+        imap = make_imap()
+        with mock.patch.object(imap.notifiers, "send") as send:
+            imap.panic("something broke")
+        # No explicit notifier names means "every configured one".
+        send.assert_called_once_with("something broke")
 
     def test_logout_without_handler_is_noop(self) -> None:
         imap = make_imap()

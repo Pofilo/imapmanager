@@ -20,9 +20,13 @@ The first objective is to **automatically sort your mail** into the desired fold
 
 If a mail matches with a filter, some actions can be taken.
 List of supported actions:
-- `move`: move the mail into the desired folder (this action is mandatory)
-- `telegram`: send a telegram notification (this action is optional)
 - `mark_as_read`: mark the mail as already read (this action is optional)
+- `move`: move the mail into the desired folder (this action is mandatory)
+- `pushover`: send a pushover notification (this action is optional)
+- `telegram`: send a telegram notification (this action is optional)
+
+Note that the pushover notification requires setting up a token and user_key.
+You can [find here](https://git.pofilo.fr/pofilo/imapmanager/src/branch/master/doc/notice-pushover.md) the documentation helping you to set up the pushover configuration.
 
 Note that the telegram notification requires setting up a token and chat_id.
 You can [find here](https://git.pofilo.fr/pofilo/imapmanager/src/branch/master/doc/notice-telegram.md) the documentation helping you to set up the telegram configuration.
