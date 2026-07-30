@@ -70,7 +70,7 @@ if TYPE_CHECKING:
 RECONNECT_INITIAL_DELAY = 5  # seconds
 RECONNECT_MAX_DELAY = 300  # seconds (cap)
 RECONNECT_MULTIPLIER = 2
-RECONNECT_MAX_AUTH_ATTEMPTS = 5  # IMAP4.error (login) tolerated before giving up
+RECONNECT_MAX_AUTH_ATTEMPTS = 10  # IMAP4.error (login) tolerated before giving up
 
 SOCKET_TIMEOUT = 60
 

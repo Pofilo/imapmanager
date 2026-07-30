@@ -175,7 +175,18 @@ class TestConnectWithRetry(unittest.TestCase):
         imap, stop_event = self.make_imap_for_retry(failures)
         assert imap._connect_with_retry()
         assert imap._connect.call_count == RECONNECT_MAX_AUTH_ATTEMPTS + 1
-        assert self.wait_timeouts(stop_event) == [5, 10, 20, 40, 80]
+        assert self.wait_timeouts(stop_event) == [
+            5,
+            10,
+            20,
+            40,
+            80,
+            160,
+            300,
+            300,
+            300,
+            300,
+        ]
         stop_event.set.assert_not_called()
 
     def test_auth_failures_panic_after_five(self) -> None:
