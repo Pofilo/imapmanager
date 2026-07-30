@@ -31,6 +31,7 @@ from imapmanager.constants import (
     FILTER_ACTIONS_NAME,
     FILTER_PATTERN_NAME,
     FILTER_WEIGHT_NAME,
+    HEARTBEAT_GRACE,
     HOSTNAME_NAME,
     IMAP_BODY,
     IMAP_CC,
@@ -62,6 +63,7 @@ if TYPE_CHECKING:
     from threading import Event
 
     from imapmanager.conf import ImapConf
+    from imapmanager.heartbeat import Heartbeat
 
 # Reconnection backoff on transient connection/SSL errors.
 RECONNECT_INITIAL_DELAY = 5  # seconds
@@ -150,6 +152,7 @@ class Imap:
         logger: Logger,
         config: ImapConf,
         stop_event: Event,
+        heartbeat: Heartbeat,
     ) -> None:
         self.logger = logger
         self._hostname = config.get(HOSTNAME_NAME)
@@ -159,6 +162,7 @@ class Imap:
         self.config = config
         self.running = False
         self._stop_event = stop_event
+        self._heartbeat = heartbeat
         self.notifiers = Notifiers(logger, config)
 
         self._connect_with_retry()
@@ -216,6 +220,9 @@ class Imap:
                 delay,
                 reason,
             )
+
+            # Waiting out an outage is expected behaviour, not a stuck daemon.
+            self._heartbeat.refresh(delay + HEARTBEAT_GRACE)
 
             if self._stop_event.wait(timeout=delay):
                 return False
@@ -290,6 +297,8 @@ class Imap:
         for uid_bytes in data[0].split():
             if stop_event.is_set():
                 return
+            # Keep a slow backlog healthy: each mail processed is progress.
+            self._heartbeat.refresh()
             uid = uid_bytes.decode()
 
             mail_subject = ""

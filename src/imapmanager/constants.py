@@ -18,6 +18,7 @@ with this program. If not, see <http://www.gnu.org/licenses/>.
 
 # CONFIGURATION VARIABLES NAMES
 CONFIG_PATH_NAME = "IMAPMANAGER_CONFIG_PATH"
+HEARTBEAT_PATH_NAME = "IMAPMANAGER_HEARTBEAT_PATH"
 HOSTNAME_NAME = "hostname"
 PORT_NAME = "port"
 USERNAME_NAME = "username"
@@ -75,3 +76,5 @@ IMAP_CC = "cc"
 DEFAULT_CONFIG_PATH = "/etc/imapmanager.conf.yml"
 ENCODING = "utf-8"
 DEFAULT_WEIGHT = 0
+# Grace duration added to the expected wait before a heartbeat is considered stale.
+HEARTBEAT_GRACE = 300  # seconds

@@ -10,7 +10,7 @@ from ssl import SSLError
 from threading import Event
 from unittest import mock
 
-from imapmanager.constants import NOTIFIERS
+from imapmanager.constants import HEARTBEAT_GRACE, NOTIFIERS
 from imapmanager.imap import (
     RECONNECT_MAX_AUTH_ATTEMPTS,
     SOCKET_TIMEOUT,
@@ -49,12 +49,14 @@ def make_config(**overrides):
 def make_imap(config=None, stop_event=None):
     """
     Build an Imap instance without any network access and with a mocked handler.
+    The heartbeat is a mock, reachable as imap._heartbeat for assertions.
     """
     with mock.patch.object(Imap, "_connect_with_retry", return_value=True):
         imap = Imap(
             mock.MagicMock(),
             config if config is not None else make_config(),
             stop_event if stop_event is not None else Event(),
+            mock.MagicMock(),
         )
     imap._handler = mock.MagicMock()
     imap.running = True
@@ -154,6 +156,17 @@ class TestConnectWithRetry(unittest.TestCase):
         stop_event.is_set.return_value = True
         assert not imap._connect_with_retry()
         imap._connect.assert_not_called()
+
+    def test_heartbeat_refreshed_while_waiting_out_an_outage(self) -> None:
+        # Retrying forever is by design, so an outage must not look stuck: the
+        # deadline has to track the growing backoff, not the polling interval.
+        imap, _ = self.make_imap_for_retry([OSError("net down")] * 3 + [None])
+        assert imap._connect_with_retry()
+        assert [call.args[0] for call in imap._heartbeat.refresh.call_args_list] == [
+            5 + HEARTBEAT_GRACE,
+            10 + HEARTBEAT_GRACE,
+            20 + HEARTBEAT_GRACE,
+        ]
 
     def test_socket_timeout_retries_forever_without_panicking(self) -> None:
         # A read timeout is a network fault: it must back off indefinitely, never
@@ -475,6 +488,13 @@ class TestProcessMails(ProcessMailsTestCase):
         self.imap.process_mails(self.stop_event)
         assert [call.args[1] for call in self.uid_calls("FETCH")] == ["1", "2", "3"]
         assert len(self.uid_calls("EXPUNGE")) == 3
+
+    def test_heartbeat_refreshed_per_mail(self) -> None:
+        # A long backlog is progress, not stuck: every mail pushes the deadline
+        # back, so working through it slowly never reports unhealthy.
+        self.uid_responses["SEARCH"] = ("OK", [b"1 2 3"])
+        self.imap.process_mails(self.stop_event)
+        assert self.imap._heartbeat.refresh.call_count == 3
 
     def test_vanished_mail_skipped(self) -> None:
         self.uid_responses["FETCH"] = ("OK", [None])

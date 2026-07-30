@@ -23,9 +23,11 @@ from typing import TYPE_CHECKING
 
 from imapmanager.conf import ImapConf
 from imapmanager.constants import (
+    HEARTBEAT_GRACE,
     LOG_LEVEL_NAME,
     POLLING_INTERVAL_NAME,
 )
+from imapmanager.heartbeat import Heartbeat
 from imapmanager.imap import Imap
 
 if TYPE_CHECKING:
@@ -72,9 +74,13 @@ def main() -> None:
     # token, which sits in the path) into the logs.
     logging.getLogger("urllib3").setLevel(max(log_level, logging.INFO))
 
-    imap = Imap(logger, config, stop_event)
-
     polling_interval = config.get(POLLING_INTERVAL_NAME)
+
+    # Publish a first heartbeat before creating Imap() (which does a connection).
+    heartbeat = Heartbeat(valid_for=float(polling_interval) + HEARTBEAT_GRACE)
+    heartbeat.refresh()
+
+    imap = Imap(logger, config, stop_event, heartbeat)
 
     # MAIN LOOP
     while not stop_event.is_set():
@@ -88,6 +94,8 @@ def main() -> None:
         if not imap.running:
             logger.info("imap process not running, stopping...")
             stop_event.set()
+
+        heartbeat.refresh()
 
         stop_event.wait(timeout=float(polling_interval))
 

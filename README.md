@@ -52,13 +52,21 @@ Folders of a mailbox can be listed by using the script `list-folders`.
 ### Using Docker
 
 + Create the configuration file using the [template available here](https://git.pofilo.fr/pofilo/imapmanager/src/branch/master/config/imapmanager.sample.conf.yml) (use the template corresponding to the version of **imapmanager** you will be using).
-+ `docker run -ti -v $(pwd)/config/imapmanager.conf.yml:/etc/imapmanager.conf.yml pofilo:imapmanager:<last_tag>`
++ `docker run -ti --restart=unless-stopped -v $(pwd)/config/imapmanager.conf.yml:/etc/imapmanager.conf.yml pofilo:imapmanager:<last_tag>`
+
+The image ships a native healthcheck.
+**imapmanager** refreshes a heartbeat file while it makes progress, so the container turns `unhealthy` only when the process is alive but stuck.
+Note that Docker does not auto restart or whatever when the container is `unhealthy`.
 
 ### Options
 
 + `IMAPMANAGER_CONFIG_PATH` *(optional)*
-    + Specify the path of the configuration file
-    + Default value is `/etc/imapmanager.conf.yml`
+    + Specify the path of the configuration file.
+    + Default value is `/etc/imapmanager.conf.yml`.
++ `IMAPMANAGER_HEARTBEAT_PATH` *(optional)*
+    + Specify the path of the heartbeat file used by the healthcheck.
+    + Unset means no heartbeat file is written at all.
+    + By default, the Docker image sets it to `/run/imapmanager.heartbeat`.
 
 ## Development
 

@@ -16,11 +16,8 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
-import logging
 import re
 from email.header import decode_header, make_header
-
-logger = logging.getLogger("imapmanager")
 
 
 def extract_and_sanitize_mail_addresses(addresses: str) -> list[str]:

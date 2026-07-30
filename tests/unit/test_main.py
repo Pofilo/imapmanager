@@ -7,6 +7,7 @@ from signal import SIGINT, SIGTERM
 from unittest import mock
 
 import imapmanager
+from imapmanager.constants import HEARTBEAT_GRACE
 
 
 class TestSignalHandler(unittest.TestCase):
@@ -40,6 +41,7 @@ class TestMain(unittest.TestCase):
         with (
             mock.patch("imapmanager.ImapConf", return_value=config) as conf_cls,
             mock.patch("imapmanager.Imap") as imap_cls,
+            mock.patch("imapmanager.Heartbeat"),
             mock.patch("imapmanager.signal") as signal_mock,
         ):
             imap = imap_cls.return_value
@@ -53,11 +55,35 @@ class TestMain(unittest.TestCase):
         imap.logout.assert_called_once()
         assert imapmanager.stop_event.is_set()
 
+    def test_heartbeat_published_before_connecting_and_each_iteration(self) -> None:
+        # Imap() connects, which can block; the first heartbeat must already be
+        # on disk by then or the container looks unhealthy while starting up.
+        config = {"logLevel": "INFO", "pollingInterval": 1}
+        calls = []
+        with (
+            mock.patch("imapmanager.ImapConf", return_value=config),
+            mock.patch("imapmanager.Imap") as imap_cls,
+            mock.patch("imapmanager.Heartbeat") as heartbeat_cls,
+            mock.patch("imapmanager.signal"),
+        ):
+            imap = imap_cls.return_value
+            imap.running = False
+            heartbeat = heartbeat_cls.return_value
+            heartbeat.refresh.side_effect = lambda *_: calls.append("refresh")
+            imap_cls.side_effect = lambda *_: calls.append("Imap") or imap
+            imapmanager.main()
+
+        assert calls == ["refresh", "Imap", "refresh"]
+        # The daemon and the healthcheck must share one heartbeat instance.
+        assert imap_cls.call_args.args[3] is heartbeat
+        assert heartbeat_cls.call_args.kwargs["valid_for"] == 1 + HEARTBEAT_GRACE
+
     def test_process_mails_exception_does_not_crash_loop(self) -> None:
         config = {"logLevel": "INFO", "pollingInterval": 1}
         with (
             mock.patch("imapmanager.ImapConf", return_value=config),
             mock.patch("imapmanager.Imap") as imap_cls,
+            mock.patch("imapmanager.Heartbeat"),
             mock.patch("imapmanager.signal"),
         ):
             imap = imap_cls.return_value
