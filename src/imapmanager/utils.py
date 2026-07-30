@@ -40,6 +40,14 @@ def extract_and_sanitize_mail_addresses(addresses: str) -> list[str]:
     return list(dict.fromkeys(x.lower() for x in addresses))
 
 
+def normalize_patterns(pattern: str | list[str]) -> list[str]:
+    """
+    Return the filter pattern(s) as a list, accepting a single string or a list.
+    :param      pattern     a single pattern or a list of patterns.
+    """
+    return [pattern] if isinstance(pattern, str) else list(pattern)
+
+
 def decode_subject(subject: str) -> str:
     """
     Decode an email subject that may contain RFC 2047 encoded-words.

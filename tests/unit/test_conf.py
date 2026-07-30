@@ -231,6 +231,33 @@ class TestImapConfValidation(ImapConfTestCase):
                     in self.logger.critical.call_args.args[0]
                 )
 
+    def test_filter_pattern_list_accepted(self) -> None:
+        conf = self.make_conf(
+            VALID_CONFIG.replace(
+                "- pattern: '[SPAM]'", "- pattern: ['[SPAM]', '*** SPAM ***']"
+            )
+        )
+        assert conf["filters"]["subject"]["INBOX.spam"][0]["pattern"] == [
+            "[SPAM]",
+            "*** SPAM ***",
+        ]
+
+    def test_filter_pattern_bad_list_exits(self) -> None:
+        # An empty list, or a list holding an empty string or a non-string.
+        for bad_pattern in ("[]", "['[SPAM]', '']", "['[SPAM]', 42]", "['ok', true]"):
+            with self.subTest(pattern=bad_pattern):
+                self.logger.reset_mock()
+                self.assert_exits(
+                    VALID_CONFIG.replace(
+                        "- pattern: '[SPAM]'", f"- pattern: {bad_pattern}"
+                    )
+                )
+                assert "pattern" in self.logger.critical.call_args.args
+                assert (
+                    "must be a non-empty string"
+                    in self.logger.critical.call_args.args[0]
+                )
+
     def test_filter_weight_accepted(self) -> None:
         conf = self.make_conf(
             VALID_CONFIG.replace(

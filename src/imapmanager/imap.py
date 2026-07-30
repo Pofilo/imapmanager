@@ -55,6 +55,7 @@ from imapmanager.notifiers import Notifiers
 from imapmanager.utils import (
     decode_subject,
     extract_and_sanitize_mail_addresses,
+    normalize_patterns,
 )
 
 if TYPE_CHECKING:
@@ -477,11 +478,24 @@ class Imap:
             # Check every filter in the order
             for filter_entry in filter_entries:
                 # For this filter, check if at least one input_values matches
-                # filter_entry looks like:
+                # one of its patterns. filter_entry looks like:
                 #   {pattern: '[SPAM]', actions: [move, mark_as_read]}
+                #   {pattern: ['[SPAM]', '*** SPAM ***'], actions: [move]}
                 # An optional 'weight' can be found.
-                filter_pattern = filter_entry[FILTER_PATTERN_NAME]
-                if any(filter_pattern.lower() in inp.lower() for inp in input_values):
+                # A filter with several patterns stays a single rule: it matches as
+                # soon as one of its patterns matches.
+                matched_pattern = next(
+                    (
+                        pattern
+                        for pattern in normalize_patterns(
+                            filter_entry[FILTER_PATTERN_NAME]
+                        )
+                        for input_value in input_values
+                        if pattern.lower() in input_value.lower()
+                    ),
+                    None,
+                )
+                if matched_pattern is not None:
                     matched_actions = filter_entry[FILTER_ACTIONS_NAME]
                     mail_action = MailAction(
                         rule_name=category_name,
@@ -504,7 +518,7 @@ class Imap:
                         "Got a match for category=%s filter_pattern=%s folder=%s "
                         "weight=%d",
                         category_name,
-                        filter_pattern,
+                        matched_pattern,
                         mail_action.folder,
                         mail_action.weight,
                     )

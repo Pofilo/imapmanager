@@ -357,6 +357,66 @@ class TestAnalyseFiltersForCategory(unittest.TestCase):
         assert action.weight == 10
 
 
+class TestAnalyseFiltersWithPatternList(unittest.TestCase):
+    def setUp(self) -> None:
+        self.imap = make_imap(
+            make_config(
+                filters={
+                    "subject": {
+                        "INBOX.spam": [
+                            {
+                                "pattern": ["[SPAM]", "*** SPAM ***"],
+                                "actions": ["move", "mark_as_read"],
+                            },
+                        ],
+                        "INBOX.important": [
+                            {
+                                "pattern": "urgent",
+                                "actions": ["move"],
+                                "weight": 10,
+                            },
+                        ],
+                    },
+                },
+            )
+        )
+
+    def test_first_pattern_of_the_list_matches(self) -> None:
+        action = self.imap._analyse_filters_for_category(
+            "subject", "subject", ["[SPAM] buy stuff"]
+        )
+        assert action.folder == "INBOX.spam"
+        assert action.mark_as_read
+
+    def test_later_pattern_of_the_list_matches(self) -> None:
+        action = self.imap._analyse_filters_for_category(
+            "subject", "subject", ["*** SPAM *** buy stuff"]
+        )
+        assert action.folder == "INBOX.spam"
+
+    def test_pattern_list_is_case_insensitive(self) -> None:
+        action = self.imap._analyse_filters_for_category(
+            "subject", "subject", ["Re: *** spam *** buy stuff"]
+        )
+        assert action.folder == "INBOX.spam"
+
+    def test_no_pattern_of_the_list_matches_returns_default(self) -> None:
+        action = self.imap._analyse_filters_for_category(
+            "subject", "subject", ["hello there"]
+        )
+        assert action == MailAction()
+
+    def test_pattern_list_stays_a_single_rule(self) -> None:
+        # Both patterns match, but the higher-weight rule of another folder wins
+        # and only its actions are applied.
+        action = self.imap._analyse_filters_for_category(
+            "subject", "subject", ["[SPAM] *** SPAM *** urgent offer"]
+        )
+        assert action.folder == "INBOX.important"
+        assert action.weight == 10
+        assert not action.mark_as_read
+
+
 class TestUnsafeGetMailAction(unittest.TestCase):
     def make_msg(self, **kwargs):
         return message_from_bytes(make_mail_bytes(**kwargs), policy=policy.default)

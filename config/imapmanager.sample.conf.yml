@@ -45,7 +45,9 @@ logLevel: INFO
 #   - its value is the list of filters to analyse.
 # Each filter is composed of:
 #   - pattern: the text to look for (matched case-insensitively as a substring
-#     of the mail field, e.g. pattern "spam" matches a subject "This is SPAM!");
+#     of the mail field, e.g. pattern "spam" matches a subject "This is SPAM!").
+#     It can also be a list of texts, the filter then matches as soon as ANY of
+#     them matches; such a filter still counts as a single rule (see below);
 #   - actions: a list among [mark_as_read, move, pushover, telegram];
 #   - weight: an optional integer priority (defaults to the top-level 'weight',
 #     itself 0 if unset).
@@ -65,9 +67,13 @@ logLevel: INFO
 filters:
   subject:
     INBOX.spamFolder:
-      - pattern: "[SPAM]"
+      # A single filter can hold several patterns, it matches if any of them does
+      - pattern: ["[SPAM]", "*** SPAM ***"]
         actions: [move, mark_as_read]
-      - pattern: "*** SPAM ***"
+      # Exact same pattern but list written line by line
+      - pattern:
+          - "[SPAM]"
+          - "*** SPAM ***"
         actions: [move, mark_as_read]
       # Also works with UTF-8
       - pattern: "Сοոոесt аոⅾ Ꮯⅼаіⅿ"

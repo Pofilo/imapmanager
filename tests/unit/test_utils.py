@@ -4,7 +4,11 @@ Unit tests for imapmanager.utils.
 
 import unittest
 
-from imapmanager.utils import decode_subject, extract_and_sanitize_mail_addresses
+from imapmanager.utils import (
+    decode_subject,
+    extract_and_sanitize_mail_addresses,
+    normalize_patterns,
+)
 
 
 class TestExtractAndSanitizeMailAddresses(unittest.TestCase):
@@ -125,6 +129,23 @@ class TestDecodeSubject(unittest.TestCase):
     def test_badly_formed_encoded_word_does_not_crash(self) -> None:
         # An unterminated encoded-word must not raise; it is returned verbatim.
         assert decode_subject("=?UTF-8?Q?incomplete") == "=?UTF-8?Q?incomplete"
+
+
+class TestNormalizePatterns(unittest.TestCase):
+    def test_single_string_wrapped_in_a_list(self) -> None:
+        assert normalize_patterns("[SPAM]") == ["[SPAM]"]
+
+    def test_list_kept_in_order(self) -> None:
+        assert normalize_patterns(["[SPAM]", "*** SPAM ***"]) == [
+            "[SPAM]",
+            "*** SPAM ***",
+        ]
+
+    def test_list_is_copied(self) -> None:
+        patterns = ["[SPAM]"]
+        result = normalize_patterns(patterns)
+        result.append("other")
+        assert patterns == ["[SPAM]"]
 
 
 if __name__ == "__main__":

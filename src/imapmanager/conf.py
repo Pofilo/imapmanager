@@ -215,7 +215,7 @@ class ImapConf(UserDict):
     def _check_filters(self) -> None:
         """
         Check that every filter entry in every category has the mandatory
-        <pattern> and <actions> keys.
+        <pattern> (a string or a list of strings) and <actions> keys.
         Log and exit on the first invalid entry found.
         """
         filters = self.data.get(SECTION_FILTERS_NAME, {})
@@ -243,12 +243,28 @@ class ImapConf(UserDict):
                 for index, entry in enumerate(entries):
                     self._check_filter_entry(category, folder, index, entry)
 
+    @staticmethod
+    def _is_valid_pattern(pattern: str | list[str]) -> bool:
+        """
+        Check that the given filter pattern is either a non-empty string or a
+        non-empty list of non-empty strings.
+        :param      pattern     the pattern(s) of a filter entry.
+        """
+        if isinstance(pattern, str):
+            return bool(pattern)
+        if isinstance(pattern, list):
+            return bool(pattern) and all(
+                isinstance(item, str) and item for item in pattern
+            )
+        return False
+
     def _check_filter_entry(
         self, category: str, folder: str, index: int, entry: dict
     ) -> None:
         """
         Check that the given filter entry is a mapping with the mandatory
         <pattern> and <actions> keys, and that every action is known.
+        <pattern> is either a single string or a list of strings.
         Log and exit on the first invalid field found.
         """
         if not isinstance(entry, dict):
@@ -272,9 +288,10 @@ class ImapConf(UserDict):
                 sys_exit(1)
         pattern = entry[FILTER_PATTERN_NAME]
         # An unquoted date/bool/number/null pattern is loaded as a non-str type
-        if not isinstance(pattern, str) or not pattern:
+        if not self._is_valid_pattern(pattern):
             self.logger.critical(
-                "key=%s must be a non-empty string in filter=filters.%s.%s[%d], got %s",
+                "key=%s must be a non-empty string or a non-empty list of non-empty "
+                "strings in filter=filters.%s.%s[%d], got %s",
                 FILTER_PATTERN_NAME,
                 category,
                 folder,
