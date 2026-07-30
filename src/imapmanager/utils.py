@@ -18,6 +18,12 @@ with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import re
 from email.header import decode_header, make_header
+from typing import TYPE_CHECKING
+
+from imapmanager.constants import NOTIFIERS, REDACTED
+
+if TYPE_CHECKING:
+    from imapmanager.conf import ImapConf
 
 
 def extract_and_sanitize_mail_addresses(addresses: str) -> list[str]:
@@ -38,6 +44,26 @@ def extract_and_sanitize_mail_addresses(addresses: str) -> list[str]:
     addresses = re.findall(regex, addresses, re.MULTILINE | re.IGNORECASE)
     # Lower-case each address, keeping input order and dropping duplicates
     return list(dict.fromkeys(x.lower() for x in addresses))
+
+
+def redact(text: str, config: ImapConf) -> str:
+    """
+    Replace every notifier credential of <config> found in <text>.
+    A credential reaches a log without being logged on purpose: the telegram token
+    is part of the API URL, and a <requests> error carries that URL.
+    :param      text        the text to scrub
+    :param      config      the configuration holding the credentials
+    :return                 the text with every known credential replaced.
+    """
+    for section, credential_keys in NOTIFIERS.values():
+        values = config.get(section)
+        if not isinstance(values, dict):
+            continue
+        for key in credential_keys:
+            secret = values.get(key)
+            if secret:
+                text = text.replace(str(secret), REDACTED)
+    return text
 
 
 def normalize_patterns(pattern: str | list[str]) -> list[str]:

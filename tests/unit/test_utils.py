@@ -4,11 +4,16 @@ Unit tests for imapmanager.utils.
 
 import unittest
 
+from imapmanager.constants import REDACTED
 from imapmanager.utils import (
     decode_subject,
     extract_and_sanitize_mail_addresses,
     normalize_patterns,
+    redact,
 )
+
+TELEGRAM_CONF = {"token": "tok123", "chat_id": "chat456"}
+PUSHOVER_CONF = {"token": "app123", "user_key": "usr456"}
 
 
 class TestExtractAndSanitizeMailAddresses(unittest.TestCase):
@@ -129,6 +134,48 @@ class TestDecodeSubject(unittest.TestCase):
     def test_badly_formed_encoded_word_does_not_crash(self) -> None:
         # An unterminated encoded-word must not raise; it is returned verbatim.
         assert decode_subject("=?UTF-8?Q?incomplete") == "=?UTF-8?Q?incomplete"
+
+
+class TestRedact(unittest.TestCase):
+    def test_telegram_token_replaced(self) -> None:
+        assert (
+            redact("url: /bottok123/sendMessage", {"telegram": TELEGRAM_CONF})
+            == f"url: /bot{REDACTED}/sendMessage"
+        )
+
+    def test_telegram_chat_id_replaced(self) -> None:
+        assert "chat456" not in redact("chat456 failed", {"telegram": TELEGRAM_CONF})
+
+    def test_pushover_credentials_replaced(self) -> None:
+        scrubbed = redact("app123 and usr456", {"pushover": PUSHOVER_CONF})
+        assert "app123" not in scrubbed
+        assert "usr456" not in scrubbed
+
+    def test_every_notifier_scrubbed_at_once(self) -> None:
+        scrubbed = redact(
+            "tok123 app123",
+            {"telegram": TELEGRAM_CONF, "pushover": PUSHOVER_CONF},
+        )
+        assert scrubbed == f"{REDACTED} {REDACTED}"
+
+    def test_text_without_any_credential_is_unchanged(self) -> None:
+        assert redact("network down", {"telegram": TELEGRAM_CONF}) == "network down"
+
+    def test_absent_section_is_a_no_op(self) -> None:
+        assert redact("tok123", {}) == "tok123"
+
+    def test_empty_section_is_a_no_op(self) -> None:
+        # An explicitly empty section means the notifier is disabled.
+        assert redact("tok123", {"telegram": None}) == "tok123"
+
+    def test_non_dict_section_does_not_raise(self) -> None:
+        # redact() runs while handling an error: it must never raise itself.
+        assert redact("tok123", {"telegram": "not-a-mapping"}) == "tok123"
+
+    def test_partial_section_scrubs_what_it_has(self) -> None:
+        scrubbed = redact("tok123 chat456", {"telegram": {"token": "tok123"}})
+        assert "tok123" not in scrubbed
+        assert "chat456" in scrubbed
 
 
 class TestNormalizePatterns(unittest.TestCase):

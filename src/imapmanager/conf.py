@@ -43,6 +43,7 @@ from imapmanager.constants import (
     PASSWORD_NAME,
     POLLING_INTERVAL_NAME,
     PORT_NAME,
+    REDACTED,
     SECTION_BODY_NAME,
     SECTION_DEST_NAME,
     SECTION_FILTERS_NAME,
@@ -99,11 +100,11 @@ class ImapConf(UserDict):
             self._check_config()
             if self.data.get(LOG_LEVEL_NAME) == "DEBUG":
                 conf = deepcopy(self.data)
-                conf[PASSWORD_NAME] = "*****"
+                conf[PASSWORD_NAME] = REDACTED
                 for section, credential_keys in NOTIFIERS.values():
                     if conf.get(section):
                         for key in credential_keys:
-                            conf[section][key] = "*****"
+                            conf[section][key] = REDACTED
                 self.logger.debug("conf used:\n%s", dumps(conf, indent=2, default=str))
         else:
             self.logger.critical(

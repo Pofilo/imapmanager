@@ -31,6 +31,7 @@ from imapmanager.constants import (
     TELEGRAM_CHAT_ID_NAME,
     TELEGRAM_TOKEN_NAME,
 )
+from imapmanager.utils import redact
 
 if TYPE_CHECKING:
     from logging import Logger
@@ -100,10 +101,17 @@ class Notifiers:
                     "Failed to send %s message, status_code=%s err=%s",
                     name,
                     resp.status_code,
-                    resp.text,
+                    # A proxy answering an error often echoes the requested URL.
+                    redact(resp.text, self.config),
                 )
-        except Exception:
-            self.logger.exception("Failed to send %s message", name)
+        except Exception as exc:  # noqa: BLE001 (blind-except)
+            # Never log the traceback: it ends with the <requests> message, which
+            # carries the request URL and so the telegram token it holds.
+            self.logger.error(
+                "Failed to send %s message: err=%s",
+                name,
+                redact(f"{type(exc).__name__}: {exc}", self.config),
+            )
 
     def send(self, message: str, names: tuple[str, ...] | None = None) -> None:
         """
