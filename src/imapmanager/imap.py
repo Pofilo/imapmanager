@@ -162,11 +162,14 @@ class Imap:
         self._handler: IMAP4_SSL = None
         self.config = config
         self.running = False
+        # Tells the daemon died on its own, not on a signal.
+        self.fatal = False
         self._stop_event = stop_event
         self._heartbeat = heartbeat
         self.notifiers = Notifiers(logger, config)
 
-        self._connect_with_retry()
+        if not self._connect_with_retry():
+            return
 
         logger.info(
             "imapmanager initialized on %s with %s", self._hostname, self._username
@@ -608,6 +611,7 @@ class Imap:
         Log a critical message and send it through every configured notifier.
         """
         self.running = False
+        self.fatal = True
 
         self.logger.critical(msg)
 

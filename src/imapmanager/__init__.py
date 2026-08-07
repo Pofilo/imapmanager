@@ -18,11 +18,14 @@ with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import logging
 from signal import SIGINT, SIGTERM, signal, strsignal
+from sys import exit as sys_exit
 from threading import Event
 from typing import TYPE_CHECKING
 
 from imapmanager.conf import ImapConf
 from imapmanager.constants import (
+    EXIT_FATAL,
+    EXIT_OK,
     HEARTBEAT_GRACE,
     LOG_LEVEL_NAME,
     POLLING_INTERVAL_NAME,
@@ -53,9 +56,10 @@ def signal_handler(signal_value: int, _frame: FrameType) -> None:
     stop_event.set()
 
 
-def main() -> None:
+def main() -> int:
     """
     Start the imapmanager and remain in the while loop.
+    :return     <EXIT_FATAL> when the daemon died on its own, <EXIT_OK> otherwise.
     """
     logger.info("Starting imapmanager...")
 
@@ -101,8 +105,14 @@ def main() -> None:
 
     # ENDING
     imap.logout()
+
+    if imap.fatal:
+        logger.critical("imapmanager closed after a fatal error.")
+        return EXIT_FATAL
+
     logger.info("imapmanager closed.")
+    return EXIT_OK
 
 
 if __name__ == "__main__":
-    main()
+    sys_exit(main())

@@ -150,6 +150,8 @@ class TestConnectWithRetry(unittest.TestCase):
         stop_event.wait.return_value = True
         assert not imap._connect_with_retry()
         imap._connect.assert_called_once()
+        # Being signalled mid-backoff is a clean shutdown, not a fatal error.
+        assert not imap.fatal
 
     def test_stop_event_preset_returns_false(self) -> None:
         imap, stop_event = self.make_imap_for_retry([None])
@@ -189,11 +191,12 @@ class TestConnectWithRetry(unittest.TestCase):
         ]
         stop_event.set.assert_not_called()
 
-    def test_auth_failures_panic_after_five(self) -> None:
+    def test_auth_failures_panic_after_max_attempts(self) -> None:
         imap, stop_event = self.make_imap_for_retry(IMAP4.error("bad login"))
         assert not imap._connect_with_retry()
         assert imap._connect.call_count == RECONNECT_MAX_AUTH_ATTEMPTS
         assert not imap.running
+        assert imap.fatal
         stop_event.set.assert_called_once()
 
 

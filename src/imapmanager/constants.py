@@ -75,6 +75,9 @@ IMAP_CC = "cc"
 # Replaces a credential in anything logged.
 REDACTED = "*****"
 
+EXIT_OK = 0
+EXIT_FATAL = 1
+
 # DEFAULT VARIABLES
 DEFAULT_CONFIG_PATH = "/etc/imapmanager.conf.yml"
 ENCODING = "utf-8"
