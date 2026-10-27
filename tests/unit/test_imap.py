@@ -78,6 +78,9 @@ def make_mail_bytes(subject, from_addr, to=None, cc=None, body="hello"):
     return msg.as_bytes()
 
 
+CAPABILITIES_WITH_MOVE = ("OK", [b"IMAP4rev1 UIDPLUS IDLE MOVE QUOTA"])
+CAPABILITIES_WITHOUT_MOVE = ("OK", [b"IMAP4rev1 UIDPLUS IDLE QUOTA"])
+
 FOLDER_LIST = (
     "OK",
     [
@@ -199,6 +202,19 @@ class TestConnectWithRetry(unittest.TestCase):
         assert imap.fatal
         stop_event.set.assert_called_once()
 
+    def test_panic_inside_connect_gives_up_without_retry(self) -> None:
+        imap, stop_event = self.make_imap_for_retry(None)
+
+        def panicking_connect():
+            imap.panic("no MOVE")
+
+        imap._connect.side_effect = panicking_connect
+        imap.running = False
+        assert not imap._connect_with_retry()
+        imap._connect.assert_called_once()
+        stop_event.wait.assert_not_called()
+        assert imap.fatal
+
 
 class TestConnect(unittest.TestCase):
     def test_connect_logs_in_and_selects_mailbox(self) -> None:
@@ -209,6 +225,7 @@ class TestConnect(unittest.TestCase):
             mock.patch("imapmanager.imap.IMAP4_SSL") as imap_ssl,
             mock.patch("imapmanager.imap.create_default_context") as ctx,
         ):
+            imap_ssl.return_value.capability.return_value = CAPABILITIES_WITH_MOVE
             imap._connect()
         imap_ssl.assert_called_once_with(
             "imap.example.com",
@@ -218,9 +235,42 @@ class TestConnect(unittest.TestCase):
         )
         handler = imap_ssl.return_value
         handler.login.assert_called_once_with("user@example.com", "hunter2")
+        handler.capability.assert_called_once()
         handler.select.assert_called_once_with('"INBOX"')
         assert imap._handler is handler
         assert imap.running
+
+    def test_connect_capability_failure_panics(self) -> None:
+        imap = make_imap()
+        imap._handler = None
+        imap.running = False
+        with (
+            mock.patch("imapmanager.imap.IMAP4_SSL") as imap_ssl,
+            mock.patch("imapmanager.imap.create_default_context"),
+        ):
+            imap_ssl.return_value.capability.return_value = ("NO", [b"nope"])
+            imap._connect()
+        imap_ssl.return_value.select.assert_not_called()
+        assert not imap.running
+        assert imap.fatal
+
+    def test_connect_without_move_capability_panics(self) -> None:
+        imap = make_imap()
+        imap._handler = None
+        imap.running = False
+        with (
+            mock.patch("imapmanager.imap.IMAP4_SSL") as imap_ssl,
+            mock.patch("imapmanager.imap.create_default_context"),
+        ):
+            imap_ssl.return_value.capability.return_value = CAPABILITIES_WITHOUT_MOVE
+            imap._connect()
+        handler = imap_ssl.return_value
+        handler.select.assert_not_called()
+        handler.logout.assert_called_once()
+        assert not imap.running
+        assert imap.fatal
+        assert imap._stop_event.is_set()
+        assert imap._handler is None
 
     def test_timeout_error_is_transient(self) -> None:
         # SOCKET_TIMEOUT only ever recovers because a socket timeout raises
@@ -502,8 +552,7 @@ class ProcessMailsTestCase(unittest.TestCase):
                 ],
             ),
             "STORE": ("OK", [b""]),
-            "COPY": ("OK", [b""]),
-            "EXPUNGE": ("OK", [b""]),
+            "MOVE": ("OK", [b""]),
         }
         self.handler.uid.side_effect = self.dispatch_uid
         patcher = mock.patch.object(self.imap, "_maybe_reconnect", return_value=True)
@@ -545,23 +594,23 @@ class TestProcessMails(ProcessMailsTestCase):
         assert not self.imap.running
         assert self.imap._stop_event.is_set()
 
-    def test_happy_path_moves_and_expunges(self) -> None:
+    def test_happy_path_marks_read_then_moves(self) -> None:
         self.imap.process_mails(self.stop_event)
         commands = [call.args for call in self.handler.uid.call_args_list]
         assert commands == [
             ("SEARCH", None, "UNSEEN"),
             ("FETCH", "1", "(BODY.PEEK[])"),
             ("STORE", "1", "+FLAGS", "\\Seen"),
-            ("COPY", "1", '"INBOX.spam"'),
-            ("STORE", "1", "+FLAGS", "\\Deleted"),
-            ("EXPUNGE", "1"),
+            ("MOVE", "1", '"INBOX.spam"'),
         ]
+        assert self.uid_calls("COPY") == []
+        assert self.uid_calls("EXPUNGE") == []
 
     def test_multiple_uids_all_processed(self) -> None:
         self.uid_responses["SEARCH"] = ("OK", [b"1 2 3"])
         self.imap.process_mails(self.stop_event)
         assert [call.args[1] for call in self.uid_calls("FETCH")] == ["1", "2", "3"]
-        assert len(self.uid_calls("EXPUNGE")) == 3
+        assert len(self.uid_calls("MOVE")) == 3
 
     def test_heartbeat_refreshed_per_mail(self) -> None:
         # A long backlog is progress, not stuck: every mail pushes the deadline
@@ -573,14 +622,14 @@ class TestProcessMails(ProcessMailsTestCase):
     def test_vanished_mail_skipped(self) -> None:
         self.uid_responses["FETCH"] = ("OK", [None])
         self.imap.process_mails(self.stop_event)
-        assert self.uid_calls("COPY") == []
+        assert self.uid_calls("MOVE") == []
         assert self.imap.running
 
     def test_fetch_failure_panics(self) -> None:
         self.uid_responses["FETCH"] = ("NO", [b"err"])
         self.imap.process_mails(self.stop_event)
         assert not self.imap.running
-        assert self.uid_calls("COPY") == []
+        assert self.uid_calls("MOVE") == []
 
     def test_missing_folder_falls_back_to_default_not_marked_read(self) -> None:
         # Server only knows the default folder: the spam target is missing.
@@ -589,17 +638,15 @@ class TestProcessMails(ProcessMailsTestCase):
             [b'(\\HasNoChildren) "." "INBOX.default"'],
         )
         self.imap.process_mails(self.stop_event)
-        copy_calls = self.uid_calls("COPY")
-        assert copy_calls[0].args[2] == '"INBOX.default"'
-        # No mark-as-read STORE, only the delete STORE.
-        store_flags = [call.args[3] for call in self.uid_calls("STORE")]
-        assert store_flags == ["\\Deleted"]
+        move_calls = self.uid_calls("MOVE")
+        assert move_calls[0].args[2] == '"INBOX.default"'
+        assert self.uid_calls("STORE") == []
 
     def test_missing_default_folder_panics(self) -> None:
         self.handler.list.return_value = ("OK", [b'(\\HasNoChildren) "." "INBOX"'])
         self.imap.process_mails(self.stop_event)
         assert not self.imap.running
-        assert self.uid_calls("COPY") == []
+        assert self.uid_calls("MOVE") == []
 
     def test_telegram_notification_sent_when_action(self) -> None:
         self.imap.config["filters"]["subject"]["INBOX.spam"][0]["actions"] = [
@@ -654,36 +701,32 @@ class TestProcessMails(ProcessMailsTestCase):
         self.uid_responses["STORE"] = ("NO", [b"err"])
         self.imap.process_mails(self.stop_event)
         assert not self.imap.running
-        assert self.uid_calls("COPY") == []
+        assert self.uid_calls("MOVE") == []
 
-    def test_copy_failure_panics(self) -> None:
-        self.uid_responses["COPY"] = ("NO", [b"err"])
+    def test_move_failure_panics(self) -> None:
+        self.uid_responses["MOVE"] = ("NO", [b"err"])
         self.imap.process_mails(self.stop_event)
         assert not self.imap.running
-        assert self.uid_calls("EXPUNGE") == []
-
-    def test_delete_failure_panics(self) -> None:
-        def dispatch(command, *args):
-            if command == "STORE" and args[2] == "\\Deleted":
-                return ("NO", [b"err"])
-            return self.dispatch_uid(command, *args)
-
-        self.handler.uid.side_effect = dispatch
-        self.imap.process_mails(self.stop_event)
-        assert not self.imap.running
-        assert len(self.uid_calls("COPY")) == 1
-        assert self.uid_calls("EXPUNGE") == []
-
-    def test_expunge_failure_panics(self) -> None:
-        self.uid_responses["EXPUNGE"] = ("NO", [b"err"])
-        self.imap.process_mails(self.stop_event)
-        assert not self.imap.running
+        assert self.imap._stop_event.is_set()
 
     def test_transient_error_during_actions_clears_handler(self) -> None:
-        self.uid_responses["COPY"] = OSError("connection reset")
+        self.uid_responses["MOVE"] = OSError("connection reset")
         self.imap.process_mails(self.stop_event)
         assert self.imap._handler is None
         assert self.imap.running
+
+    def test_imap_error_during_actions_clears_handler(self) -> None:
+        self.uid_responses["MOVE"] = IMAP4.error("UID command error: BAD")
+        self.imap.process_mails(self.stop_event)
+        assert self.imap._handler is None
+        assert self.imap.running
+
+    def test_imap_error_during_fetch_clears_handler(self) -> None:
+        self.uid_responses["FETCH"] = IMAP4.error("UID command error: BAD")
+        self.imap.process_mails(self.stop_event)
+        assert self.imap._handler is None
+        assert self.imap.running
+        assert self.uid_calls("MOVE") == []
 
     def test_body_with_unknown_charset_decoded_via_fallback(self) -> None:
         # get_content() raises LookupError on the bogus charset; the raw
@@ -705,7 +748,7 @@ class TestProcessMails(ProcessMailsTestCase):
         )
         self.uid_responses["FETCH"] = ("OK", [(b"1 (BODY[] {21}", raw)])
         self.imap.process_mails(self.stop_event)
-        assert self.uid_calls("COPY")[0].args[2] == '"INBOX.bodyrule"'
+        assert self.uid_calls("MOVE")[0].args[2] == '"INBOX.bodyrule"'
 
     def test_undecodable_body_gives_up_and_uses_default_folder(self) -> None:
         # Both charset decodes fail: the body is dropped and the mail still
@@ -720,7 +763,7 @@ class TestProcessMails(ProcessMailsTestCase):
             "imapmanager.imap.email.message_from_bytes", return_value=mail_msg
         ):
             self.imap.process_mails(self.stop_event)
-        assert self.uid_calls("COPY")[0].args[2] == '"INBOX.default"'
+        assert self.uid_calls("MOVE")[0].args[2] == '"INBOX.default"'
 
     def test_body_without_payload_dropped_and_uses_default_folder(self) -> None:
         mail_msg = mock.MagicMock()
@@ -732,19 +775,19 @@ class TestProcessMails(ProcessMailsTestCase):
             "imapmanager.imap.email.message_from_bytes", return_value=mail_msg
         ):
             self.imap.process_mails(self.stop_event)
-        assert self.uid_calls("COPY")[0].args[2] == '"INBOX.default"'
+        assert self.uid_calls("MOVE")[0].args[2] == '"INBOX.default"'
 
     def test_transient_error_during_fetch_clears_handler_and_returns(self) -> None:
         self.uid_responses["FETCH"] = OSError("connection reset")
         self.imap.process_mails(self.stop_event)
         assert self.imap._handler is None
-        assert self.uid_calls("COPY") == []
+        assert self.uid_calls("MOVE") == []
 
     def test_unexpected_error_moves_mail_to_default_folder(self) -> None:
         self.uid_responses["FETCH"] = ValueError("boom")
         self.imap.process_mails(self.stop_event)
-        copy_calls = self.uid_calls("COPY")
-        assert copy_calls[0].args[2] == '"INBOX.default"'
+        move_calls = self.uid_calls("MOVE")
+        assert move_calls[0].args[2] == '"INBOX.default"'
 
 
 class TestPanicAndLogout(unittest.TestCase):

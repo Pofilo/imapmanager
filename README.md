@@ -7,6 +7,7 @@ Connect and manage your emails through IMAP over SSL.
 
 + The script uses **python 3.14.6**
 + Dependencies listed in `pyproject.toml`
++ An IMAP server advertising the `MOVE` capability ([RFC 6851](https://www.rfc-editor.org/rfc/rfc6851)).
 
 ## Purpose
 

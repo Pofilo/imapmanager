@@ -187,6 +187,18 @@ class Imap:
             timeout=SOCKET_TIMEOUT,
         )
         handler.login(self._username, self.config.get(PASSWORD_NAME))
+        # Capabilities may differ before and after LOGIN.
+        typ, data = handler.capability()
+        capabilities = (
+            data[0].decode(ENCODING).upper().split()
+            if typ == "OK" and data and data[0]
+            else []
+        )
+        self.logger.debug("Server capabilities: %s", " ".join(capabilities))
+        if "MOVE" not in capabilities:
+            self._handler = handler  # let panic() log out
+            self.panic('Server does not have the "MOVE" capability, exiting...')
+            return
         handler.select(f'"{self.config.get(MAILBOX_NAME)}"')
         self._handler = handler  # affect the successful handler
         self.running = True
@@ -214,7 +226,7 @@ class Imap:
                     return False
                 reason = exc
             else:
-                return True
+                return self.running  # False if <_connect> panicked
 
             self._handler = None
             attempt += 1
@@ -362,6 +374,12 @@ class Imap:
                 )
                 self._handler = None
                 return
+            except IMAP4.error as exc:
+                self.logger.warning(
+                    "IMAP error while fetching a mail, will reconnect: err=%s", exc
+                )
+                self._handler = None
+                return
             except Exception:
                 mail_action.folder = self._default_destination_folder
                 self.logger.exception(
@@ -418,34 +436,25 @@ class Imap:
                         )
                         return
 
-                # Copy the mail into the folder
-                typ, data = self._handler.uid("COPY", uid, f'"{mail_action.folder}"')
+                # Move the mail into the folder
+                typ, data = self._handler.uid("MOVE", uid, f'"{mail_action.folder}"')
                 if typ != "OK":
                     self.panic(
-                        f'Mail with subject="{mail_subject}" not copied to '
+                        f'Mail with subject="{mail_subject}" not moved to '
                         f'folder="{mail_action.folder}" (data={data}), exiting...'
-                    )
-                    return
-
-                # Delete the original mail
-                typ, data = self._handler.uid("STORE", uid, "+FLAGS", "\\Deleted")
-                if typ != "OK":
-                    self.panic(
-                        f'Fail to delete original mail with subject="{mail_subject}" '
-                        f"(data={data}), exiting..."
-                    )
-                    return
-
-                typ, data = self._handler.uid("EXPUNGE", uid)
-                if typ != "OK":
-                    self.panic(
-                        f'Fail to expunge original mail with subject="{mail_subject}" '
-                        f"(data={data}), exiting..."
                     )
                     return
             except TRANSIENT_ERRORS as exc:
                 self.logger.warning(
                     "Connection lost while applying actions to a mail, will reconnect: "
+                    "err=%s",
+                    exc,
+                )
+                self._handler = None
+                return
+            except IMAP4.error as exc:
+                self.logger.warning(
+                    "IMAP error while applying actions to a mail, will reconnect: "
                     "err=%s",
                     exc,
                 )
