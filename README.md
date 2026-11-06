@@ -5,7 +5,7 @@ Connect and manage your emails through IMAP over SSL.
 
 ## Requirements
 
-+ The script uses **python 3.14.6**
++ The script uses **python 3.15.2**
 + Dependencies listed in `pyproject.toml`
 + An IMAP server advertising the `MOVE` capability ([RFC 6851](https://www.rfc-editor.org/rfc/rfc6851)).
 
@@ -38,7 +38,7 @@ You can [find here](https://git.pofilo.fr/pofilo/imapmanager/src/branch/master/d
 
 + Download the last stable version [available here](https://git.pofilo.fr/pofilo/imapmanager/tags)
 + `cd imapmanager`
-+ Create virtual environment: `python3.14.6 -m venv venv`
++ Create virtual environment: `python3.15.2 -m venv venv`
 + Source it: `source venv/bin/activate`
 + Install `uv`: `pip install uv`
 + Install dependencies: `uv pip install .`
@@ -76,14 +76,14 @@ Linters and typos will be checked before committing.
 
 ### Tests
 
-+ Install dependencies: `pip install .[tests]`
++ Install dependencies: `uv pip install .[tests]`
 + Run tests: `pytest`
 + Run tests with coverage: `pytest --cov`
 + Optional HTML report in `htmlcov/`: `pytest --cov --cov-report=html`
 
 ### Linters
 
-+ Install dependencies: `pip install .[linters]`
++ Install dependencies: `uv pip install .[linters]`
 + Run linters:
 
 ```bash

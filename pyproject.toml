@@ -4,7 +4,7 @@ name = "imapmanager"
 version = "0.0.1-dev"  # REQUIRED, although can be dynamic
 description = "Connect and manage your mail account through IMAP."
 readme = "README.md"
-requires-python = "==3.14.6"
+requires-python = "==3.15.2"
 license = {file = "LICENSE"}
 keywords = ["imap", "python"]
 
@@ -28,11 +28,11 @@ dependencies = [
 [project.optional-dependencies]
 # $ pip install .[linters]
 linters = [
-    "ruff==0.16.0",
+    "ruff==0.17.4",
 ]
 # $ pip install .[tests]
 tests = [
-    "pytest==9.1.1",
+    "pytest==9.2.0",
     "pytest-cov==7.1.0",
 ]
 
